@@ -2,7 +2,7 @@
 
 > 敲击赛博木鱼，积攒数字功德。一个**纯 Win32 API** 实现的桌面挂件：单 exe、零依赖、真透明、带声音。
 
-<sub>没有 Electron，没有 Qt，没有解释器——只有一个约 3 MB 的 `电子木鱼.exe`，双击即用。</sub>
+<sub>没有 Electron，没有 Qt，没有解释器——只有一个约 12 MB 的 `电子木鱼.exe`（5 首内置禅曲占大头），双击即用。</sub>
 
 ## 🎞️ 效果演示
 
@@ -12,7 +12,7 @@
 
 ## ✨ 特性
 
-- 🖱️ **点谁敲谁**：整窗即按钮，点击木鱼任意处敲击，鱼身受压缩放、音波纹扩散、木槌绕柄急落缓起
+- 🖱️ **点谁敲谁**：整窗即按钮，点击后木槌绕柄急落下挥，**触鱼一刻**才发声、鱼身受压缩放、音波纹扩散——先敲后响，手感真实
 - 🔢 **功德计数**：总功德 + 今日功德，跨天自动清零，重启不丢（注册表持久化）
 - 🔥 **连击系统**：1.5 秒内连击计 combo，音调逐级升高，10/30/50 连击触发金色"连击"暴击飘字
 - 📜 **飘字文案**：固定"功德 +1"或随机福语（佛系/智慧/平静/好运/慈悲/欢喜/自在/清净/正能量）
@@ -55,12 +55,12 @@ ui (窗口/菜单) → render (绘制/皮肤) → media (图像/音频) → core
 | 核心 | `core/util` `core/app_state` `core/settings` `core/autorun` |
 | 媒体 | `media/assets` `media/audio_engine` |
 | 渲染 | `render/painter` `render/skins` |
-| UI | `ui/main_window` `ui/menu` |
+| UI | `ui/main_window` `ui/menu` `ui/prompt` |
 
 **关键技术点**
 
 - 分层窗口 `UpdateLayeredWindow`：每帧渲染到 32bpp 预乘 alpha DIB，实现无边框真透明
-- 启动门控：mp3 在显示窗口前全部解码为 PCM 常驻内存，首击零延迟
+- 启动门控：敲击音在显示窗口前解码为 PCM 常驻（首击零延迟）；禅曲选中时才懒解码，内存中只驻留当前一首
 - 连击变调：`IXAudio2SourceVoice::SetFrequencyRatio`，每连击 +0.4%（封顶 50）
 - 状态持久化：`HKCU\Software\WoodenFish`，容量 8 字节的功德计数器 🗃️
 
@@ -85,6 +85,7 @@ ui (窗口/菜单) → render (绘制/皮肤) → media (图像/音频) → core
 ## 🙏 致谢与素材来源
 
 - 视觉布局参考开源微信小程序「电子木鱼」(mp-muyu) 的 rpx 版式，素材为项目内 PNG
+- 达成佛光贴图（放射光线、带真实透明通道）为本地 AI 生成，无版权负担
 - 禅定背景音：5 首可切换曲目（*Meditation Impromptu 01*、*Fresh Air*、*Kalimba Relaxation Music*、*River Flute*、*White Lotus*）— 均为 [Kevin MacLeod](https://incompetech.com), CC-BY 4.0
 - 功德无价，本软件亦免费
 

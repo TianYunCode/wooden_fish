@@ -92,7 +92,7 @@
 flowchart LR
     R[RCDATA 资源\nexe 内嵌] -->|启动加载| A[Assets\nGDI+ Bitmap]
     R -->|MF 预解码| AE[AudioEngine\nPCM 常驻]
-    UI[WndProc / Menu\n用户输入] -->|DoKnock| S[AppState\n功德/连击/飘字]
+    UI[WndProc / Menu\n用户输入] -->|DoKnock 起挥 → 定时器 Strike 触鱼结算| S[AppState\n功德/连击/飘字]
     S -->|读状态| P[render::Painter]
     A --> P
     S -->|PlayKnock| AE

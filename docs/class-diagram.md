@@ -136,6 +136,11 @@ classDiagram
         +ShowMenu(ctx, x, y, fromTray) void$
     }
 
+    class Prompt {
+        <<static·ui/prompt>>
+        +PromptNumber(parent, title, label, def, min, max, &out) bool$（内存 DLGTEMPLATE 数字输入框）
+    }
+
     class Main {
         <<src/main.cpp wWinMain>>
         生命周期编排·消息循环
@@ -161,6 +166,7 @@ classDiagram
     Menu --> Settings
     Menu --> AutoRun
     Menu --> AudioEngine : ApplyZen
+    Menu --> Prompt : 自定义目标
     Painter --> AppState : 只读
     Painter --> Assets : 只读
     Painter --> Skins

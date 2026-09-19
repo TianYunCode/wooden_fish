@@ -18,22 +18,22 @@ sequenceDiagram
     M->>M: GdiplusStartup + SetProcessDPIAware
     M->>M: state.dpi = GetDpiForSystem()/96
     M->>REG: LoadSettings(state)
-    REG-->>M: 功德/设置/上次窗口位置
-    M->>R: Assets.Load()（RCDATA→GDI+ Bitmap ×2）
-    R-->>M: fish / gu 位图
+    REG-->>M: 功德/设置/自定义目标值 goalX/本地禅曲路径 zenFile（窗口位置不落盘）
+    M->>R: Assets.Load()（RCDATA→GDI+ Bitmap ×3）
+    R-->>M: fish / gu / glow 位图
     M->>M: CoInitializeEx + MFStartup
     M->>AE: Init()
-    AE->>R: MF SourceReader 解码 knock.mp3 → PCM
-    AE->>R: 解码 zen.mp3 → PCM（可选）
+    AE->>R: MF SourceReader 仅解码 knock.mp3 → PCM（禅曲推迟到选中时懒解码）
     AE->>AE: XAudio2Create + MasteringVoice
     AE-->>M: ok
-    M->>AE: ApplyZen(state.zenIdx)（恢复上次禅定音）
+    M->>M: zenIdx==本地文件但文件已丢失 → 视为关
+    M->>AE: ApplyZen(state.zenIdx, zenFile)（懒解码选中曲目并恢复上次禅定音）
     M->>W: Create(ctx,hInst)
     W->>OS: RegisterClassExW("WoodenFishWnd")
     W->>OS: CreateWindowExW(LAYERED|TOPMOST|TOOLWINDOW, lpParam=&ctx)
     OS->>W: WM_NCCREATE
     W->>W: GWLP_USERDATA ← &ctx
-    W->>W: 位置校验（不在任何显示器内则回落到右下角）
+    W->>W: 位置固定工作区右下角（距边 40px，每次启动如此）
     M->>OS: AddTrayIcon(Shell_NotifyIconW NIM_ADD)
     M->>OS: SetTimer(动画16ms) + ApplyAuto + RegisterHotKey(F8)
     M->>M: render::Render（首帧）
@@ -133,11 +133,17 @@ sequenceDiagram
         MU->>SYS: ApplyScale(kSizeVals[n]) → SetWindowPos+Render
     else IDM_SKIN_BASE+n
         MU->>SYS: state.skinIdx=n → Render（GetSkinAttr 换矩阵）
-    else IDM_ZEN_BASE+n
-        MU->>SYS: audio.ApplyZen(on) + Render
+    else IDM_GOAL_BASE+n（n=5 "自定义…"）
+        MU->>SYS: PromptNumber 数字输入框（内存 DLGTEMPLATE）→ 设定 goalCustom 且 goalIdx=5 → Render
+    else IDM_GOAL_BASE+n（预设档）
+        MU->>SYS: state.goalIdx=n → Render
+    else IDM_ZEN_BASE+n（n=kZenCustomIdx "本地音频文件…"）
+        MU->>SYS: GetOpenFileNameW 选文件 → ApplyZen(6, 路径)；解码失败 MessageBox 并回退原曲
+    else IDM_ZEN_BASE+n（其余）
+        MU->>SYS: audio.ApplyZen(n) 懒解码切曲
     else IDM_AUTO_BASE+n
         MU->>SYS: ApplyAuto（KillTimer/SetTimer 2）
-    else IDM_VOL/WORD/GOAL
+    else IDM_VOL/WORD
         MU->>SYS: 改 state 字段 → Render
     else IDM_TOPMOST
         MU->>SYS: SetWindowPos TOPMOST/NOTOPMOST
@@ -166,7 +172,7 @@ sequenceDiagram
     WP->>OS: WM_DESTROY → PostQuitMessage(0)
     OS-->>M: GetMessage 返回 0，消息循环退出
     M->>OS: KillTimer(1) KillTimer(2) UnregisterHotKey(F8)
-    M->>M: SaveSettings（最后状态与窗口位置落盘）
+    M->>M: SaveSettings（功德与全部设置落盘；窗口位置不存）
     M->>OS: Shell_NotifyIconW(NIM_DELETE) + DestroyIcon
     M->>AE: Shutdown()：Zen声部→敲击声部池→Mastering→XAudio2
     M->>OS: MFShutdown + CoUninitialize

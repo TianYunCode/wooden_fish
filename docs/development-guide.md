@@ -31,8 +31,8 @@ README.md
 docs/                 本文档目录
 resources/            资源
   app.rc              资源脚本（#pragma code_page(65001) 必需）
-  resource.h          IDR_FISH/GU/KNOCK/ZEN = 101..104
-  app_icon.ico  images/*.png  sounds/*.mp3  zen.mp3
+  resource.h          IDR_FISH=101 IDR_GU=102 IDR_KNOCK=103 IDR_ZEN1=104 IDR_GLOW=105 IDR_ZEN2..5=106..109
+  app_icon.ico  images/{muyu,gu,glow}.png  sounds/knock.mp3  audio/zen1..5.mp3
 src/
   main.cpp            wWinMain
   app_context.h       依赖聚合根
@@ -40,7 +40,7 @@ src/
   core/               util / app_state / settings / autorun
   media/              assets / audio_engine
   render/             skins / painter
-  ui/                 main_window / menu
+  ui/                 main_window / menu / prompt
 build/                交付目录（只放 电子木鱼.exe）
 build_msvc/           CMake 二进制目录（可整体删除重建，勿提交 git）
 ```
@@ -85,21 +85,26 @@ build_msvc/           CMake 二进制目录（可整体删除重建，勿提交 
 | 小窗口下文字消失 | 字体按逻辑像素随窗口缩小；painter 中已按"最小物理像素"反算字号（功德 13px / 目标 11px），新文字元素同理 |
 | Git Bash 下跑 PowerShell 检查窗口 | `$` 被 bash 展开/中文乱码；用 `-EncodedCommand`（UTF-16LE→base64）或按 ASCII 类名 `WoodenFishWnd` 匹配 |
 | `taskkill` 参数被 MSYS 改写 | 前缀 `MSYS_NO_PATHCONV=1` |
+| 内存 DLGTEMPLATE 对话框"点了没反应" | `DialogBoxIndirectParamW` 失败且静默。DLGTEMPLATE 字段顺序是 style→exstyle→**cdit**→x,y,cx,cy→menu→class→title→[字号+字体名]；cdit 必须紧跟 exstyle，多写/错位一个 WORD 全盘错。字体大小字段按**整点**存（9=9pt）。可把 prompt.cpp 单独编成小测无头验证（找 #32770/填值/PostMessage IDOK） |
+| 裁出来的 mp3 是纯静音 | 素材整段落在源曲目空白处；`-ss` 快进定位也可能落到错误偏移。交付前必查 `ffmpeg -af volumedetect`（mean 应远大于 -91dB） |
+| mp3 时长/码率头显示异常（如 210s 报 54s） | `-ss` 放在 `-i` 前的快裁导致 Xing 头损坏；改输出端精确定位，仍不对就 wav 往返重编并 `-write_xing 1` |
+| ffmpeg geq 表达式报"Undefined constant"或"A luminance or RGB expression is mandatory" | geq 坐标变量是大写 `X,Y`；对 gbrap 只写 a 表达式不行，r/g/b 必须给恒等式 `p(X,Y)` |
 
 ## 7. 如何扩展
 
 - **加一档皮肤**：`config::` 加名字 → `render/skins.cpp` 的 `GetSkinAttr` 加分支（ColorMatrix）→ `ui/menu.cpp` skinNames 数组补名并在处理分支放宽计数。
 - **加一条福语**：只改 `config/layout.h::kWords` 与 `kWordCount`。
 - **加一个设置项**：`AppState` 加字段 → `LoadSettings/SaveSettings` 加键 → 菜单 `IDM_*_BASE` 加组 → `ShowMenu` 建子菜单+分发分支。
-- **换背景乐**：替换 `resources/zen.mp3`（保持 IDR_ZEN 与 ≤ 数百 MB 内存可接受），重新构建即可，代码零改动。
+- **换/加内置禅曲**：替换或追加 `resources/audio/zenN.mp3`（对应 IDR_ZENN），并同步 `config::kZenNames` 与 `kZenTrackCount`。素材须按同一管线离线处理：两遍 loudnorm 归一 -23 LUFS / TP -2.1 → 3s 淡入淡出 → 44.1k 立体声 80k CBR。**裁切后必须 `ffmpeg -af volumedetect` 验非静音、`ffprobe` 验时长**（见第 6 节坑表）。用户也可在菜单"本地音频文件…"自选，无需重编。
+- **改敲击时序**：起挥在 `ui::DoKnock`（记 `knockAt`），触鱼结算在 `ui::Strike`（由 16ms 动画定时器在 `kSwingMs` 后驱动）；声音/挤压/波纹一律以 `impactAt` 为时基，勿再挂到点击时刻。
 
 ## 8. 验证清单（改完跑一遍）
 
-1. 启动：无窗口前无报错，右下角出现木鱼，托盘有图标。
-2. 点击：有声音、飘字、按压动画；快速连点音调升高，10/30/50 连击出金字。
+1. 启动：无窗口前无报错，右下角出现木鱼（工作区右下角、距边 40px），托盘有图标。
+2. 点击：棒槌先下挥、触鱼一刻才响/挤压/波纹/飘字；快速连点音调升高，10/30/50 连击出金字。
 3. F8 全局热键敲击；托盘双击隐藏/恢复。
-4. 菜单逐项：尺寸三档、音量四档、自动敲击四档、目标、皮肤、禅定音、置顶、开机自启、重置。
-5. 退出重开：功德/位置/全部设置复原（注册表兼容性）。
+4. 菜单逐项：尺寸三档、音量四档、自动敲击四档、目标（含"自定义…"弹窗）、皮肤、禅定音（5 曲+本地文件）、置顶、开机自启、重置。
+5. 退出重开：功德/全部设置复原（注册表兼容性）；窗口仍固定右下角（位置不记忆）。
 6. `build/` 目录有且仅有一个 `电子木鱼.exe`。
 
 ---
