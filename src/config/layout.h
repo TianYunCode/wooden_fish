@@ -33,10 +33,12 @@ inline constexpr float kVolLv[4] = {0.0f, 0.35f, 0.7f, 1.0f};  // 静音/小/中
 inline constexpr UINT kAutoMs[4] = {0, 1500, 800, 400};        // 自动敲击间隔：关/慢/中/快
 inline constexpr unsigned kGoals[5] = {0, 27, 54, 108, 216};   // 每日目标(佛教数)
 inline constexpr int kGoalMenuCount = 6;  // 5 档预设 + 自定义…
-inline constexpr int kWordCount = 10;
+inline constexpr int kWordCount = 20;
 inline constexpr const char *kWords[kWordCount] = {
-    "功德 +1", "佛系 +1", "智慧 +1", "平静 +1", "好运 +1",
-    "慈悲 +1", "欢喜 +1", "自在 +1", "清净 +1", "正能量 +1"};
+    "功德 +1",     "佛系 +1",   "智慧 +1",     "平静 +1",   "好运 +1",
+    "慈悲 +1",     "欢喜 +1",   "自在 +1",     "清净 +1",   "正能量 +1",
+    "福报 +1",     "福慧 +1",   "禅定 +1",     "放下 +1",   "豁达 +1",
+    "宽容 +1",     "法喜 +1",   "自律 +1",     "无畏 +1",   "善巧 +1"};
 
 // 禅定音：0=关，1..kZenTrackCount 选曲（全部 Kevin MacLeod, CC-BY 4.0），kZenTrackCount+1=本地文件
 inline constexpr int kZenTrackCount = 5;
