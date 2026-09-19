@@ -64,7 +64,7 @@ sequenceDiagram
     Note over K: kSwingMs(90ms) 后由动画定时器回调 Strike（见时序图 3）
     K->>K: Strike：merit++ · 跨天则 daily 归零 · daily++
     K->>K: combo：1.5s 窗口内 +1 否则重置 1
-    K->>K: 生成飘字（固定/随机福语；10/30/50 连击追加金色"连击 xN"）
+    K->>K: 生成飘字（固定/随机福语，"关闭"档则跳过；10/30/50 连击追加金色"连击 xN"）
     K->>K: 飘字池封顶 24 条
     K->>AE: PlayKnock(volIdx, combo)（槌头触鱼一刻才发声）
     AE->>AE: 回收 endAt 到期声部
@@ -73,7 +73,7 @@ sequenceDiagram
     P->>P: 画入 32bpp DIB：鱼身挤压/达成光晕/音波纹/挥槌/飘字/功德/进度条（挤压与波纹以 impactAt 为时基）
     P->>OS: UpdateLayeredWindow(ULW_ALPHA)
     K->>REG: SaveSettings（功德即时落盘，断电不丢）
-    U->>OS: 按住拖动 >4px 视为移动窗口
+    U->>OS: 按住拖动 >4px 视为移动窗口（"固定"勾选后禁用）
     OS->>WP: WM_MOUSEMOVE → SetWindowPos
     U->>OS: 左键抬起
     OS->>WP: WM_LBUTTONUP → ReleaseCapture ·（拖过则存位置）
@@ -147,10 +147,14 @@ sequenceDiagram
         MU->>SYS: 改 state 字段 → Render
     else IDM_TOPMOST
         MU->>SYS: SetWindowPos TOPMOST/NOTOPMOST
+    else IDM_PIN
+        MU->>SYS: state.pinned 取反（WM_MOUSEMOVE 拖动闸门）
     else IDM_AUTORUN
         MU->>SYS: AutoRunSet(!AutoRunOn())
     else IDM_SHOWHIDE（托盘双击/菜单）
         MU->>SYS: ToggleFish
+    else IDM_LEDGER
+        MU->>SYS: ReadLedger（注册表 log 子键）→ 格式化 → ShowTextDialog 只读列表
     else IDM_RESET
         MU->>SYS: merit=daily=0 → Render
     else IDM_QUIT

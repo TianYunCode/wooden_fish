@@ -8,6 +8,7 @@ namespace {
 
 constexpr WORD kIdLabel = 101;
 constexpr WORD kIdEdit = 100;
+constexpr WORD kIdText = 103;
 
 struct PromptCtx {
     const wchar_t *label;
@@ -84,6 +85,48 @@ INT_PTR CALLBACK DlgProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
 }
 
 }  // namespace
+
+INT_PTR CALLBACK TextDlgProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
+    switch (msg) {
+    case WM_INITDIALOG:
+        SetWindowTextW(GetDlgItem(h, kIdText), reinterpret_cast<const wchar_t *>(lp));
+        SetFocus(GetDlgItem(h, IDCANCEL));
+        return FALSE;
+    case WM_COMMAND:
+        if (LOWORD(wp) == IDOK || LOWORD(wp) == IDCANCEL) {
+            EndDialog(h, LOWORD(wp));
+            return TRUE;
+        }
+        break;
+    }
+    return FALSE;
+}
+
+void ShowTextDialog(HWND parent, const wchar_t *title, const std::wstring &text) {
+    std::vector<BYTE> b;
+    Align4(b);
+    Put(b, DWORD(WS_POPUP | WS_CAPTION | WS_SYSMENU | DS_MODALFRAME | DS_SETFONT | DS_CENTER));
+    Put(b, DWORD(WS_EX_DLGMODALFRAME));
+    Put(b, WORD(2));  // 控件数
+    Put(b, INT16(0));
+    Put(b, INT16(0));
+    Put(b, INT16(264));
+    Put(b, INT16(172));
+    Put(b, WORD(0));  // 无菜单
+    Put(b, WORD(0));  // 窗口类为默认 #32770
+    PutW(b, title);
+    Put(b, WORD(9));  // DS_SETFONT 字号：9pt（模板按整点存储）
+    PutW(b, L"MS Shell Dlg");
+    AddItem(b,
+            WS_CHILD | WS_VISIBLE | WS_BORDER | WS_TABSTOP | ES_MULTILINE | ES_READONLY |
+                ES_AUTOVSCROLL | WS_VSCROLL,
+            7, 7, 250, 143, kIdText, 0x0081, L"");
+    AddItem(b, WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 94, 155, 76, 15, IDCANCEL,
+            0x0080, L"关闭");
+    DialogBoxIndirectParamW(GetModuleHandleW(nullptr),
+                            reinterpret_cast<LPCDLGTEMPLATEW>(b.data()), parent, TextDlgProc,
+                            reinterpret_cast<LPARAM>(text.c_str()));
+}
 
 bool PromptNumber(HWND parent, const wchar_t *title, const wchar_t *label, int defVal, int minV,
                   int maxV, int &out) {

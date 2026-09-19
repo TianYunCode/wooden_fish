@@ -2,8 +2,11 @@
 
 #include <windows.h>
 #include <commdlg.h>
+#include <cstdio>
+#include <cwchar>
 #include <iterator>
 #include <string>
+#include <vector>
 
 #include "config/layout.h"
 #include "core/autorun.h"
@@ -34,7 +37,7 @@ void ShowMenu(AppContext &ctx, int x, int y, bool fromTray) {
     const char *autoNames[] = {"关", "慢", "中", "快"};
     const char *volNames[] = {"静音", "小", "中", "大"};
     const char *goalNames[] = {"不设", "27", "54", "108", "216", "自定义…"};
-    const char *wordNames[] = {"固定 功德+1", "随机福语"};
+    const char *wordNames[] = {"固定 功德+1", "随机福语", "关闭"};
     const char *skinNames[] = {"原木", "鎏金", "水墨", "霓虹"};
 
     HMENU menu = CreatePopupMenu();
@@ -44,6 +47,7 @@ void ShowMenu(AppContext &ctx, int x, int y, bool fromTray) {
         AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     }
     AppendMenuW(menu, MF_STRING | (st.topmost ? MF_CHECKED : 0), IDM_TOPMOST, L"置顶");
+    AppendMenuW(menu, MF_STRING | (st.pinned ? MF_CHECKED : 0), IDM_PIN, L"固定");
     AppendMenuW(menu, MF_STRING | (AutoRunOn() ? MF_CHECKED : 0), IDM_AUTORUN, L"开机自启");
     {
         HMENU s = CreatePopupMenu();
@@ -63,7 +67,7 @@ void ShowMenu(AppContext &ctx, int x, int y, bool fromTray) {
     }
     {
         HMENU s = CreatePopupMenu();
-        AddRadio(s, IDM_WORD_BASE, wordNames, 2, st.wordIdx);
+        AddRadio(s, IDM_WORD_BASE, wordNames, 3, st.wordIdx);
         AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(s), L"飘字");
     }
     {
@@ -82,6 +86,7 @@ void ShowMenu(AppContext &ctx, int x, int y, bool fromTray) {
         AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(s), L"禅定音");
     }
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(menu, MF_STRING, IDM_LEDGER, L"功德簿");
     AppendMenuW(menu, MF_STRING, IDM_RESET, L"重置功德");
     AppendMenuW(menu, MF_STRING, IDM_QUIT, L"退出");
 
@@ -94,10 +99,35 @@ void ShowMenu(AppContext &ctx, int x, int y, bool fromTray) {
 
     if (id == IDM_SHOWHIDE) {
         ToggleFish(ctx);
+    } else if (id == IDM_LEDGER) {
+        auto rows = ReadLedger();
+        std::wstring txt;
+        wchar_t line[96];
+        unsigned long long sum = 0;
+        for (auto &r : rows)
+            sum += r.second;
+        if (rows.empty()) {
+            txt = U8("尚无记录。\n开始敲击，功德簿会自动记下每天最终的功德。");
+        } else {
+            txt = U8("日期          当日功德\n");
+            for (auto it = rows.rbegin(); it != rows.rend(); ++it) {  // 最近一天在最上
+                DWORD d = it->first;
+                std::swprintf(line, std::size(line), L"%04u-%02u-%02u    %llu\r\n",
+                              d / 10000, d / 100 % 100, d % 100, it->second);
+                txt += line;
+            }
+            std::swprintf(line, std::size(line), L"\r\n在册 %d 日，累计 %llu 功德",
+                          static_cast<int>(rows.size()), sum);
+            txt += line;
+        }
+        ShowTextDialog(hwnd, L"功德簿", txt);
     } else if (id == IDM_TOPMOST) {
         st.topmost = !st.topmost;
         SetWindowPos(hwnd, st.topmost ? HWND_TOPMOST : HWND_NOTOPMOST, 0, 0, 0, 0,
                      SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+        SaveSettings(st, hwnd);
+    } else if (id == IDM_PIN) {
+        st.pinned = !st.pinned;
         SaveSettings(st, hwnd);
     } else if (id == IDM_AUTORUN) {
         AutoRunSet(!AutoRunOn());
@@ -117,7 +147,7 @@ void ShowMenu(AppContext &ctx, int x, int y, bool fromTray) {
         st.volIdx = static_cast<int>(id - IDM_VOL_BASE);
         ctx.audio.SetVolume(st.volIdx);
         SaveSettings(st, hwnd);
-    } else if (id >= IDM_WORD_BASE && id < IDM_WORD_BASE + 2) {
+    } else if (id >= IDM_WORD_BASE && id < IDM_WORD_BASE + 3) {
         st.wordIdx = static_cast<int>(id - IDM_WORD_BASE);
         SaveSettings(st, hwnd);
     } else if (id >= IDM_GOAL_BASE && id < IDM_GOAL_BASE + 6) {

@@ -58,10 +58,10 @@
 | `src/media/assets.*` | 图像素材 | `FindResource → SHCreateMemStream → Gdiplus::Bitmap::FromStream` |
 | `src/media/audio_engine.*` | 音频 | MF SourceReader 解码 16bit PCM；XAudio2 每击一声部、音调随连击升高、按时间回收；禅定音 5 曲目懒解码、仅当前曲目常驻、无限循环 |
 | `src/render/skins.*` | 皮肤 | 4 组 ColorMatrix，按 skinIdx 缓存 ImageAttributes |
-| `src/render/painter.*` | 渲染 | 32bpp premultiplied DIB 上画鱼身挤压、波纹、挥槌、飘字、功德、目标进度条 |
+| `src/render/painter.*` | 渲染 | 32bpp premultiplied DIB 上画鱼身挤压、波纹、挥槌、飘字、功德、目标进度条（达成后改画"功德圆满"+佛光） |
 | `src/ui/main_window.*` | 窗口 | 分层窗口、点击敲击、拖动移位、托盘回调、双定时器、F8 热键 |
 | `src/ui/menu.*` | 菜单 | 纯文字 `MF_STRING` + `MF_CHECKED`，命令分发到各子系统 |
-| `src/ui/prompt.*` | 输入框 | 内存 DLGTEMPLATE + `DialogBoxIndirectParamW`，数字输入（自定义目标） |
+| `src/ui/prompt.*` | 小对话框 | 内存 DLGTEMPLATE + `DialogBoxIndirectParamW`：数字输入（自定义目标）、只读多行文本（功德簿） |
 
 ## 4. 关键技术选型与理由
 

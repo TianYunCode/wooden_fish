@@ -138,30 +138,47 @@ void Render(HWND hwnd, const AppState &st, media::Assets &assets) {
                                static_cast<REAL>(mpx * 1.9)),
                          &sf, &br);
         }
-        // 今日目标：木鱼正下方居中，文字+进度条
+        // 今日目标：未达成显示"今日 d/t"+进度条；达成后换成金色"功德圆满"（佛光已在鱼身绘制）
         if (unsigned gt = st.GoalTotal()) {
-            double gpx = 12.0;
-            if (gpx * s < 11.0) gpx = 11.0 / s;
-            Font f(&fam, static_cast<REAL>(gpx), FontStyleRegular, UnitPixel);
-            StringFormat sf;
-            sf.SetAlignment(StringAlignmentCenter);
-            sf.SetLineAlignment(StringAlignmentCenter);
-            SolidBrush br(Color(200, 0x6B, 0x52, 0x3A));
-            std::wstring gts = U8("今日 ") + std::to_wstring(st.daily) + L"/" + std::to_wstring(gt);
-            // 文字底边固定在进度条上方，字号被物理像素下限放大时向上生长，避免被裁
-            g.DrawString(gts.c_str(), -1, &f,
-                         RectF(static_cast<REAL>(config::kFishCx - 165),
-                               static_cast<REAL>(437 - gpx * 1.9), 330, static_cast<REAL>(gpx * 1.9)),
-                         &sf, &br);
             double ratio = static_cast<double>(st.daily) / gt;
             if (ratio > 1.0) ratio = 1.0;
-            const double bw = 200, bx = config::kFishCx - bw / 2, by = 440;
-            SolidBrush trackBg(Color(70, 0x6B, 0x52, 0x3A));
-            g.FillRectangle(&trackBg, static_cast<REAL>(bx), static_cast<REAL>(by),
-                            static_cast<REAL>(bw), 5.0f);
-            SolidBrush fill(ratio >= 1.0 ? Color(230, 0xD4, 0xAF, 0x00) : Color(200, 0xB8, 0x86, 0x2A));
-            g.FillRectangle(&fill, static_cast<REAL>(bx), static_cast<REAL>(by),
-                            static_cast<REAL>(bw * ratio), 5.0f);
+            if (st.daily >= gt) {
+                double fpx = 15.0;
+                if (fpx * s < 13.0) fpx = 13.0 / s;
+                Font f(&fam, static_cast<REAL>(fpx), FontStyleBold, UnitPixel);
+                StringFormat sf;
+                sf.SetAlignment(StringAlignmentCenter);
+                sf.SetLineAlignment(StringAlignmentCenter);
+                // 与佛光同拍呼吸的金色
+                double breath = 0.72 + 0.28 * std::sin(static_cast<double>(now) / 400.0);
+                SolidBrush br(Color(static_cast<BYTE>(255 * breath), 0xD4, 0xAF, 0x00));
+                g.DrawString(U8("功德圆满").c_str(), -1, &f,
+                             RectF(static_cast<REAL>(config::kFishCx - 165),
+                                   static_cast<REAL>(414 - fpx * 1.9 / 2), 330,
+                                   static_cast<REAL>(fpx * 1.9 + 31)),
+                             &sf, &br);
+            } else {
+                double gpx = 12.0;
+                if (gpx * s < 11.0) gpx = 11.0 / s;
+                Font f(&fam, static_cast<REAL>(gpx), FontStyleRegular, UnitPixel);
+                StringFormat sf;
+                sf.SetAlignment(StringAlignmentCenter);
+                sf.SetLineAlignment(StringAlignmentCenter);
+                SolidBrush br(Color(200, 0x6B, 0x52, 0x3A));
+                std::wstring gts = U8("今日 ") + std::to_wstring(st.daily) + L"/" + std::to_wstring(gt);
+                // 文字底边固定在进度条上方，字号被物理像素下限放大时向上生长，避免被裁
+                g.DrawString(gts.c_str(), -1, &f,
+                             RectF(static_cast<REAL>(config::kFishCx - 165),
+                                   static_cast<REAL>(437 - gpx * 1.9), 330, static_cast<REAL>(gpx * 1.9)),
+                             &sf, &br);
+                const double bw = 200, bx = config::kFishCx - bw / 2, by = 440;
+                SolidBrush trackBg(Color(70, 0x6B, 0x52, 0x3A));
+                g.FillRectangle(&trackBg, static_cast<REAL>(bx), static_cast<REAL>(by),
+                                static_cast<REAL>(bw), 5.0f);
+                SolidBrush fill(Color(200, 0xB8, 0x86, 0x2A));
+                g.FillRectangle(&fill, static_cast<REAL>(bx), static_cast<REAL>(by),
+                                static_cast<REAL>(bw * ratio), 5.0f);
+            }
         }
     }
 

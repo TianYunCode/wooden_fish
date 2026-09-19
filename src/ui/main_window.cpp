@@ -89,12 +89,15 @@ void Strike(AppContext &ctx) {
     ++st.daily;
     st.combo = (now - st.comboAt < config::kComboWindowMs) ? st.combo + 1 : 1;
     st.comboAt = now;
-    std::wstring word =
-        st.wordIdx == 0 ? U8("功德 +1") : U8(config::kWords[std::rand() % config::kWordCount]);
     bool crit = st.combo == 10 || st.combo == 30 || st.combo == 50;
-    st.floats.push_back({st.impactX, st.impactY, now, word, crit});
-    if (crit)
-        st.floats.push_back({st.impactX, st.impactY + 26, now, U8("连击 x") + std::to_wstring(st.combo), true});
+    if (st.wordIdx != 2) {  // 飘字档位 2 = 关闭：不产生任何飘字（含连击金字）
+        std::wstring word = st.wordIdx == 0 ? U8("功德 +1")
+                                            : U8(config::kWords[std::rand() % config::kWordCount]);
+        st.floats.push_back({st.impactX, st.impactY, now, word, crit});
+        if (crit)
+            st.floats.push_back({st.impactX, st.impactY + 26, now,
+                                 U8("连击 x") + std::to_wstring(st.combo), true});
+    }
     if (st.floats.size() > config::kMaxFloats)
         st.floats.erase(st.floats.begin(),
                         st.floats.begin() + (static_cast<int>(st.floats.size()) - config::kMaxFloats));
@@ -166,8 +169,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_MOUSEMOVE:
         if (st.captured && (wp & MK_LBUTTON)) {
             int x = GET_X_LPARAM(lp), y = GET_Y_LPARAM(lp);
-            if (!st.dragging && (std::abs(x - st.lastX) + std::abs(y - st.lastY) > 4))
-                st.dragging = true;
+            if (!st.dragging && !st.pinned &&
+                (std::abs(x - st.lastX) + std::abs(y - st.lastY) > 4))
+                st.dragging = true;  // "固定"勾选后禁止拖动，点击仍正常敲击
             if (st.dragging) {
                 RECT wr;
                 GetWindowRect(hwnd, &wr);

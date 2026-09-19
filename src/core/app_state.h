@@ -25,11 +25,12 @@ struct AppState {
     // 用户设置
     double scale = 1.0;             // 启动时被 config 默认档覆盖
     bool topmost = true;            // 默认置顶
+    bool pinned = false;            // 固定：勾选后左键拖动无效（防误碰移位）
     int volIdx = 2;                 // 0静音 1小 2中 3大
     int autoIdx = 0;                // 0关 1慢 2中 3快
     int goalIdx = 0;                // 0不设 1:27 2:54 3:108 4:216 5:自定义
     unsigned goalCustom = 108;      // goalIdx==5 时生效
-    int wordIdx = 1;                // 0固定功德+1 1随机福语
+    int wordIdx = 1;                // 0固定功德+1 1随机福语 2关闭
     int skinIdx = 0;                // 0原木 1鎏金 2水墨 3霓虹
     int zenIdx = 0;                 // 禅定音 0关 1..5曲目 6:本地文件
     std::wstring zenFile;           // zenIdx==6 时的音频文件路径

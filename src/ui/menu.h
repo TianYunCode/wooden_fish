@@ -11,6 +11,8 @@ enum MenuId : WORD {
     IDM_SHOWHIDE = 104,
     IDM_TOPMOST = 105,
     IDM_AUTORUN = 106,
+    IDM_LEDGER = 107,  // 功德簿（查看每日最终功德）
+    IDM_PIN = 108,     // 固定（勾选后左键拖动无效，防误碰移位）
     IDM_SIZE_BASE = 201,  // 小/中/大
     IDM_AUTO_BASE = 211,  // 关/慢/中/快
     IDM_VOL_BASE = 221,   // 静音/小/中/大

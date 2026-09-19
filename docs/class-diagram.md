@@ -24,6 +24,7 @@ classDiagram
         +DWORD dailyDate
         +double scale
         +bool topmost
+        +bool pinned
         +int volIdx
         +int autoIdx
         +int goalIdx
@@ -139,6 +140,7 @@ classDiagram
     class Prompt {
         <<static·ui/prompt>>
         +PromptNumber(parent, title, label, def, min, max, &out) bool$（内存 DLGTEMPLATE 数字输入框）
+        +ShowTextDialog(parent, title, text) void$（只读多行文本框，功德簿用）
     }
 
     class Main {
@@ -190,7 +192,7 @@ classDiagram
 ## 3. 关键类型说明
 
 ### `AppState`（唯一的可变状态容器）
-- **持久字段**：`merit daily dailyDate scale topmost volIdx autoIdx goalIdx goalCustom wordIdx skinIdx zenIdx zenFile` —— 与注册表一一对应，`Settings` 负责搬运。
+- **持久字段**：`merit daily dailyDate scale topmost pinned volIdx autoIdx goalIdx goalCustom wordIdx skinIdx zenIdx zenFile` —— 与注册表一一对应，`Settings` 负责搬运。
 - **瞬态字段**：`dpi knockAt impactAt impactPending impactX impactY combo comboAt floats captured dragging lastX lastY` —— 仅影响动画，不落盘（`dpi` 每次启动重算）。`knockAt` 是棒槌起挥时刻，声音/挤压/波纹/飘字以 `impactAt`（触鱼）为时基。
 - `EffScale() = scale × dpi`：所有"基准坐标 ↔ 物理像素"换算的唯一入口。
 - 渲染层只持有 `const AppState&`，写状态的路径只有 UI 层（敲击/菜单）和 `Settings::LoadSettings`。
