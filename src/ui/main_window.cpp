@@ -75,7 +75,7 @@ void RemoveTrayIcon(AppContext &ctx) {
     }
 }
 
-// 槌头触鱼：此刻才发声、缩放、波纹、飘字、计数（由点击后的 kSwingMs 延迟触发）
+// 槌头触鱼：此刻才发声、缩放、波纹、飘字、计数（由起挥后的 kSwingMs 延迟触发）
 void Strike(AppContext &ctx) {
     AppState &st = ctx.state;
     st.impactPending = false;
@@ -164,7 +164,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         st.dragging = false;
         st.lastX = GET_X_LPARAM(lp);
         st.lastY = GET_Y_LPARAM(lp);
-        DoKnock(*pctx, st.lastX / st.EffScale(), st.lastY / st.EffScale());
         return 0;
     case WM_MOUSEMOVE:
         if (st.captured && (wp & MK_LBUTTON)) {
@@ -181,8 +180,13 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         }
         return 0;
     case WM_LBUTTONUP:
-        if (st.captured)
+        if (st.captured) {
             ReleaseCapture();
+            // 按住期间未拖动才在抬起时起挥；拖过窗口只算移动，不敲
+            if (!st.dragging)
+                DoKnock(*pctx, GET_X_LPARAM(lp) / st.EffScale(),
+                        GET_Y_LPARAM(lp) / st.EffScale());
+        }
         st.captured = st.dragging = false;
         return 0;
     case WM_TRAYICON: {

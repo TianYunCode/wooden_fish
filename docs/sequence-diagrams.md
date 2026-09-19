@@ -57,7 +57,13 @@ sequenceDiagram
 
     U->>OS: 左键按下
     OS->>WP: WM_LBUTTONDOWN(x,y)
-    WP->>WP: SetCapture · 记录 lastX/Y
+    WP->>WP: SetCapture · 记录 lastX/Y · dragging=false
+    opt 按住期间移动 >4px（"固定"勾选后禁用）
+        OS->>WP: WM_MOUSEMOVE → SetWindowPos · dragging=true
+    end
+    U->>OS: 左键抬起
+    OS->>WP: WM_LBUTTONUP(x,y) → ReleaseCapture
+    Note over WP: 未拖动过才 DoKnock——抬起才起挥；拖过只算移动窗口
     WP->>K: DoKnock(x/EffScale, y/EffScale)（换算回基准坐标）
     K->>K: 记录 knockAt/impactX/Y · impactPending=true（仅起挥，棒槌开始下挥）
     K->>P: Render（挥槌动画启动）
@@ -73,10 +79,6 @@ sequenceDiagram
     P->>P: 画入 32bpp DIB：鱼身挤压/达成光晕/音波纹/挥槌/飘字/功德/进度条（挤压与波纹以 impactAt 为时基）
     P->>OS: UpdateLayeredWindow(ULW_ALPHA)
     K->>REG: SaveSettings（功德即时落盘，断电不丢）
-    U->>OS: 按住拖动 >4px 视为移动窗口（"固定"勾选后禁用）
-    OS->>WP: WM_MOUSEMOVE → SetWindowPos
-    U->>OS: 左键抬起
-    OS->>WP: WM_LBUTTONUP → ReleaseCapture ·（拖过则存位置）
 ```
 
 ## 3. 定时器驱动：动画帧 与 自动敲击
