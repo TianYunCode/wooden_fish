@@ -10,8 +10,9 @@ namespace muyu::media {
 struct Assets {
     Gdiplus::Bitmap *fish = nullptr;
     Gdiplus::Bitmap *gu = nullptr;
+    Gdiplus::Bitmap *glow = nullptr;  // 达成佛光（可选，缺失则不画）
 
-    bool Load();  // 两张图全部成功才返回 true
+    bool Load();  // 两张主图全部成功才返回 true
     void Free();
 };
 

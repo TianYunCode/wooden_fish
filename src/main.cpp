@@ -34,7 +34,11 @@ int APIENTRY wWinMain(HINSTANCE hInst, HINSTANCE, LPWSTR, int) {
     CoInitializeEx(nullptr, COINIT_MULTITHREADED);
     MFStartup(MF_VERSION);
     ctx.audio.Init();                       // 解码+预热完成后才显示 UI，杜绝首击延迟
-    ctx.audio.ApplyZen(ctx.state.zenIdx != 0);  // 恢复上次会话的禅定音
+    ctx.audio.SetVolume(ctx.state.volIdx);  // 恢复音量档（敲击+禅定共用）
+    if (ctx.state.zenIdx == config::kZenCustomIdx &&
+        GetFileAttributesW(ctx.state.zenFile.c_str()) == INVALID_FILE_ATTRIBUTES)
+        ctx.state.zenIdx = 0;  // 自定义文件已丢失则视为关
+    ctx.audio.ApplyZen(ctx.state.zenIdx, ctx.state.zenFile);  // 恢复上次会话的禅定音
 
     ui::Create(ctx, hInst);
     if (!ctx.hwnd) {

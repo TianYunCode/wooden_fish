@@ -65,7 +65,8 @@ build_msvc/           CMake 二进制目录（可整体删除重建，勿提交 
 | `scale` | REG_DWORD | 缩放×1000 | 300..2000 |
 | `topmost` | REG_DWORD | 置顶 | 0/1 |
 | `vol` `auto` `goal` `word` `skin` `zen` | REG_DWORD | 各档位索引 | ≤ 各自上限 |
-| `x` `y` | REG_DWORD | 上次退出窗口位置 | 需落在某显示器内，否则回落右下角 |
+| `goalX` | REG_DWORD | 自定义目标值 | goal=5 时生效 |
+| `zenFile` | REG_SZ | 本地禅定音频路径 | zen=6 时生效 |
 
 旧枚举值兼容：升级/重构不改键名与格式，MinGW 时代存档可直接读取。
 

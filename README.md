@@ -18,11 +18,11 @@
 - 📜 **飘字文案**：固定"功德 +1"或随机福语（佛系/智慧/平静/好运/慈悲/欢喜/自在/清净/正能量）
 - ⏰ **自动敲击**：慢/中/快三档挂机，电子木鱼替你先敲为敬
 - ⌨️ **全局热键**：任意界面按 <kbd>F8</kbd> 隔空敲一记
-- 🎯 **今日目标**：27 / 54 / 108 / 216 四档佛教数字目标，进度条 + 达成后金色光晕呼吸
+- 🎯 **今日目标**：27 / 54 / 108 / 216 四档佛教数字或任意自定义，进度条 + 达成后金色佛光呼吸
 - 🎨 **四皮肤**：原木 / 鎏金 / 水墨 / 霓虹，同一素材 ColorMatrix 实时调色
 - 🎵 **真·音效**：Media Foundation 预解码 + XAudio2 多声部混音，连打声浪自然重叠
-- 🧘 **禅定背景音**："Meditation Impromptu 01"（Kevin MacLeod, CC-BY 4.0）无缝循环
-- 📌 **窗口特性**：逐像素真透明不规则窗口、置顶开关、拖拽移动、记住位置、系统托盘（双击显隐）、开机自启
+- 🧘 **禅定背景音**：5 首内置曲目（Kevin MacLeod, CC-BY 4.0）或自选本地音频（mp3/wav/m4a/aac/flac/wma），无缝循环，与敲击共用音量档
+- 📌 **窗口特性**：逐像素真透明不规则窗口、置顶开关、拖拽移动、启动固定屏幕右下角、系统托盘（双击显隐）、开机自启
 - 📐 **三档尺寸**：小 / 中 / 大（大 = 素材原始 480px 满幅）
 
 ## 🚀 快速开始
@@ -85,7 +85,7 @@ ui (窗口/菜单) → render (绘制/皮肤) → media (图像/音频) → core
 ## 🙏 致谢与素材来源
 
 - 视觉布局参考开源微信小程序「电子木鱼」(mp-muyu) 的 rpx 版式，素材为项目内 PNG
-- 禅定背景音：*Meditation Impromptu 01* — [Kevin MacLeod](https://incompetech.com), CC-BY 4.0
+- 禅定背景音：5 首可切换曲目（*Meditation Impromptu 01*、*Fresh Air*、*Kalimba Relaxation Music*、*River Flute*、*White Lotus*）— 均为 [Kevin MacLeod](https://incompetech.com), CC-BY 4.0
 - 功德无价，本软件亦免费
 
 ## 📄 License

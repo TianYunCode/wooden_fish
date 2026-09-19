@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+#include "config/layout.h"
+
 namespace muyu {
 
 // 一条漂浮文字
@@ -25,14 +27,18 @@ struct AppState {
     bool topmost = true;            // 默认置顶
     int volIdx = 2;                 // 0静音 1小 2中 3大
     int autoIdx = 0;                // 0关 1慢 2中 3快
-    int goalIdx = 0;                // 0不设 1:27 2:54 3:108 4:216
+    int goalIdx = 0;                // 0不设 1:27 2:54 3:108 4:216 5:自定义
+    unsigned goalCustom = 108;      // goalIdx==5 时生效
     int wordIdx = 1;                // 0固定功德+1 1随机福语
     int skinIdx = 0;                // 0原木 1鎏金 2水墨 3霓虹
-    int zenIdx = 0;                 // 0关 1开
-    int startX = -1, startY = -1;   // 上次退出时的窗口位置
+    int zenIdx = 0;                 // 禅定音 0关 1..5曲目 6:本地文件
+    std::wstring zenFile;           // zenIdx==6 时的音频文件路径
     // 动画/交互瞬态
     double dpi = 1.0;
-    ULONGLONG knockAt = 0;          // 最近一次敲击时刻
+    ULONGLONG knockAt = 0;          // 最近一次起挥（棒槌开始下挥）时刻
+    ULONGLONG impactAt = 0;         // 槌头触鱼时刻：声音/缩放/波纹/飘字以此为起点
+    bool impactPending = false;     // 下挥进行中，尚未触鱼
+    double impactX = 0, impactY = 0;  // 待触鱼这一击的飘字锚点
     int combo = 0;                  // 1.5s 内连击计数
     ULONGLONG comboAt = 0;
     std::vector<FloatText> floats;
@@ -40,6 +46,10 @@ struct AppState {
     int lastX = 0, lastY = 0;
 
     double EffScale() const { return scale * dpi; }
+    unsigned GoalTotal() const {
+        if (goalIdx == 0) return 0;
+        return goalIdx <= 4 ? config::kGoals[goalIdx] : goalCustom;
+    }
 };
 
 }  // namespace muyu

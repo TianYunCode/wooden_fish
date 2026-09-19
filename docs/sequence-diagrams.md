@@ -59,15 +59,18 @@ sequenceDiagram
     OS->>WP: WM_LBUTTONDOWN(x,y)
     WP->>WP: SetCapture · 记录 lastX/Y
     WP->>K: DoKnock(x/EffScale, y/EffScale)（换算回基准坐标）
-    K->>K: merit++ · 跨天则 daily 归零 · daily++
+    K->>K: 记录 knockAt/impactX/Y · impactPending=true（仅起挥，棒槌开始下挥）
+    K->>P: Render（挥槌动画启动）
+    Note over K: kSwingMs(90ms) 后由动画定时器回调 Strike（见时序图 3）
+    K->>K: Strike：merit++ · 跨天则 daily 归零 · daily++
     K->>K: combo：1.5s 窗口内 +1 否则重置 1
     K->>K: 生成飘字（固定/随机福语；10/30/50 连击追加金色"连击 xN"）
     K->>K: 飘字池封顶 24 条
-    K->>AE: PlayKnock(volIdx, combo)
+    K->>AE: PlayKnock(volIdx, combo)（槌头触鱼一刻才发声）
     AE->>AE: 回收 endAt 到期声部
     AE->>AE: CreateSourceVoice→SetVolume(档位)→SetFrequencyRatio(音调随连击)→Submit→Start
     K->>P: Render(hwnd, state, assets)
-    P->>P: 画入 32bpp DIB：鱼身挤压/达成光晕/音波纹/挥槌/飘字/功德/进度条
+    P->>P: 画入 32bpp DIB：鱼身挤压/达成光晕/音波纹/挥槌/飘字/功德/进度条（挤压与波纹以 impactAt 为时基）
     P->>OS: UpdateLayeredWindow(ULW_ALPHA)
     K->>REG: SaveSettings（功德即时落盘，断电不丢）
     U->>OS: 按住拖动 >4px 视为移动窗口
@@ -89,8 +92,11 @@ sequenceDiagram
 
     loop 每 16ms
         T1->>WP: WM_TIMER(1)
+        alt impactPending 且 now-knockAt ≥ kSwingMs
+            WP->>K: Strike()（触鱼结算：发声+挤压+波纹+飘字+计数+落盘）
+        end
         WP->>WP: 清除 born 超过 1s 的飘字
-        alt AnimActive（动画未散 或 目标达成光晕呼吸）
+        alt AnimActive（下挥进行中 或 动画未散 或 目标达成光晕呼吸）
             WP->>P: Render（推进 squash/波纹/挥槌/飘字 相位）
         else 静止
             WP->>WP: 跳过重绘（省电）

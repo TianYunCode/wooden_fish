@@ -41,13 +41,9 @@ void Create(AppContext &ctx, HINSTANCE hInst) {
     SystemParametersInfoW(SPI_GETWORKAREA, 0, &wa, 0);
     int w = static_cast<int>(config::kW * st.EffScale() + 0.5);
     int h = static_cast<int>(config::kH * st.EffScale() + 0.5);
-    int px = st.startX >= 0 ? st.startX : wa.right - w - 40;
-    int py = st.startY >= 0 ? st.startY : wa.bottom - h - 40;
-    // 恢复的位置若已不在任何显示器范围内则回到默认角
-    if (st.startX >= 0 && !MonitorFromPoint(POINT{px + w / 2, py + h / 2}, MONITOR_DEFAULTTONULL)) {
-        px = wa.right - w - 40;
-        py = wa.bottom - h - 40;
-    }
+    // 每次启动都放屏幕工作区右下角（不记忆位置）
+    int px = wa.right - w - 40;
+    int py = wa.bottom - h - 40;
     ctx.hwnd = CreateWindowExW(WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_TOOLWINDOW, wc.lpszClassName,
                                U8("电子木鱼").c_str(), WS_POPUP, px, py, w, h, nullptr, nullptr,
                                hInst, &ctx);
@@ -79,30 +75,44 @@ void RemoveTrayIcon(AppContext &ctx) {
     }
 }
 
-void DoKnock(AppContext &ctx, double x, double y) {
+// 槌头触鱼：此刻才发声、缩放、波纹、飘字、计数（由点击后的 kSwingMs 延迟触发）
+void Strike(AppContext &ctx) {
     AppState &st = ctx.state;
+    st.impactPending = false;
+    ULONGLONG now = GetTickCount64();
+    st.impactAt = now;
     ++st.merit;
     if (st.dailyDate != TodayYmd()) {
         st.dailyDate = TodayYmd();
         st.daily = 0;
     }
     ++st.daily;
-    ULONGLONG now = GetTickCount64();
-    st.knockAt = now;
     st.combo = (now - st.comboAt < config::kComboWindowMs) ? st.combo + 1 : 1;
     st.comboAt = now;
     std::wstring word =
         st.wordIdx == 0 ? U8("功德 +1") : U8(config::kWords[std::rand() % config::kWordCount]);
     bool crit = st.combo == 10 || st.combo == 30 || st.combo == 50;
-    st.floats.push_back({x, y, now, word, crit});
+    st.floats.push_back({st.impactX, st.impactY, now, word, crit});
     if (crit)
-        st.floats.push_back({x, y + 26, now, U8("连击 x") + std::to_wstring(st.combo), true});
+        st.floats.push_back({st.impactX, st.impactY + 26, now, U8("连击 x") + std::to_wstring(st.combo), true});
     if (st.floats.size() > config::kMaxFloats)
         st.floats.erase(st.floats.begin(),
                         st.floats.begin() + (static_cast<int>(st.floats.size()) - config::kMaxFloats));
-    ctx.audio.PlayKnock(st.volIdx, st.combo);
+    ctx.audio.PlayKnock(st.combo);
     render::Render(ctx.hwnd, st, ctx.assets);
     SaveSettings(st, ctx.hwnd);
+}
+
+// 起挥：棒槌先下挥 kSwingMs，触鱼时刻由动画定时器结算给 Strike
+void DoKnock(AppContext &ctx, double x, double y) {
+    AppState &st = ctx.state;
+    if (st.impactPending)
+        Strike(ctx);  // 极速连点：先把上一击结算掉
+    st.knockAt = GetTickCount64();
+    st.impactPending = true;
+    st.impactX = x;
+    st.impactY = y;
+    render::Render(ctx.hwnd, st, ctx.assets);
 }
 
 void ApplyScale(AppContext &ctx, double s) {
@@ -169,8 +179,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_LBUTTONUP:
         if (st.captured)
             ReleaseCapture();
-        if (st.dragging)
-            SaveSettings(st, hwnd);  // 记住拖动后的位置
         st.captured = st.dragging = false;
         return 0;
     case WM_TRAYICON: {
@@ -196,6 +204,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                 DoKnock(*pctx, config::kHitX + 15, config::kHitY - 25);
             return 0;
         }
+        if (st.impactPending && GetTickCount64() - st.knockAt >= config::kSwingMs)
+            Strike(*pctx);  // 槌头落到位：此刻发声并触发鱼身效果
         st.floats.erase(std::remove_if(st.floats.begin(), st.floats.end(),
                                        [&](const FloatText &f) {
                                            return GetTickCount64() - f.born > config::kFloatMs;

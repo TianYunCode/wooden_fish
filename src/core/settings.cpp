@@ -41,20 +41,19 @@ void LoadSettings(AppState &st) {
     u32(L"auto", v);
     if (v <= 3) st.autoIdx = static_cast<int>(v);
     u32(L"goal", v);
-    if (v <= 4) st.goalIdx = static_cast<int>(v);
+    if (v <= 5) st.goalIdx = static_cast<int>(v);
+    u32(L"goalX", v);
+    if (v >= 1 && v <= 99999) st.goalCustom = v;
     u32(L"word", v);
     if (v <= 1) st.wordIdx = static_cast<int>(v);
     u32(L"skin", v);
     if (v <= 3) st.skinIdx = static_cast<int>(v);
     u32(L"zen", v);
-    if (v <= 1) st.zenIdx = static_cast<int>(v);
-    DWORD px = 0xFFFFFFFF, py = 0xFFFFFFFF;
-    u32(L"x", px);
-    u32(L"y", py);
-    if (px != 0xFFFFFFFF && py != 0xFFFFFFFF) {
-        st.startX = static_cast<int>(px);
-        st.startY = static_cast<int>(py);
-    }
+    if (v <= static_cast<DWORD>(config::kZenCustomIdx)) st.zenIdx = static_cast<int>(v);
+    wchar_t path[512] = L"";
+    DWORD sz = sizeof(path);
+    RegQueryValueExW(k, L"zenFile", nullptr, nullptr, reinterpret_cast<BYTE *>(path), &sz);
+    st.zenFile = path;
     RegCloseKey(k);
 }
 
@@ -77,15 +76,15 @@ void SaveSettings(const AppState &st, HWND hwnd) {
     w32(L"vol", st.volIdx);
     w32(L"auto", st.autoIdx);
     w32(L"goal", st.goalIdx);
+    w32(L"goalX", st.goalCustom);
     w32(L"word", st.wordIdx);
     w32(L"skin", st.skinIdx);
     w32(L"zen", st.zenIdx);
-    if (hwnd) {
-        RECT wr;
-        GetWindowRect(hwnd, &wr);
-        w32(L"x", static_cast<DWORD>(wr.left));
-        w32(L"y", static_cast<DWORD>(wr.top));
-    }
+    if (!st.zenFile.empty())
+        RegSetValueExW(k, L"zenFile", 0, REG_SZ,
+                       reinterpret_cast<const BYTE *>(st.zenFile.c_str()),
+                       static_cast<DWORD>((st.zenFile.size() + 1) * sizeof(wchar_t)));
+    (void)hwnd;  // 位置不再持久化：每次启动固定屏幕右下角
     RegCloseKey(k);
 }
 

@@ -1,6 +1,8 @@
 #include "ui/menu.h"
 
 #include <windows.h>
+#include <commdlg.h>
+#include <iterator>
 #include <string>
 
 #include "config/layout.h"
@@ -9,6 +11,7 @@
 #include "core/util.h"
 #include "render/painter.h"
 #include "ui/main_window.h"
+#include "ui/prompt.h"
 
 namespace muyu::ui {
 
@@ -30,10 +33,9 @@ void ShowMenu(AppContext &ctx, int x, int y, bool fromTray) {
     const char *sizeNames[] = {"小", "中", "大"};
     const char *autoNames[] = {"关", "慢", "中", "快"};
     const char *volNames[] = {"静音", "小", "中", "大"};
-    const char *goalNames[] = {"不设", "27", "54", "108", "216"};
+    const char *goalNames[] = {"不设", "27", "54", "108", "216", "自定义…"};
     const char *wordNames[] = {"固定 功德+1", "随机福语"};
     const char *skinNames[] = {"原木", "鎏金", "水墨", "霓虹"};
-    const char *zenNames[] = {"关", "开"};
 
     HMENU menu = CreatePopupMenu();
     if (fromTray) {
@@ -66,7 +68,7 @@ void ShowMenu(AppContext &ctx, int x, int y, bool fromTray) {
     }
     {
         HMENU s = CreatePopupMenu();
-        AddRadio(s, IDM_GOAL_BASE, goalNames, 5, st.goalIdx);
+        AddRadio(s, IDM_GOAL_BASE, goalNames, 6, st.goalIdx);
         AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(s), L"今日目标");
     }
     {
@@ -76,7 +78,7 @@ void ShowMenu(AppContext &ctx, int x, int y, bool fromTray) {
     }
     {
         HMENU s = CreatePopupMenu();
-        AddRadio(s, IDM_ZEN_BASE, zenNames, 2, st.zenIdx);
+        AddRadio(s, IDM_ZEN_BASE, config::kZenNames, config::kZenMenuCount, st.zenIdx);
         AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(s), L"禅定音");
     }
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
@@ -113,22 +115,60 @@ void ShowMenu(AppContext &ctx, int x, int y, bool fromTray) {
         SaveSettings(st, hwnd);
     } else if (id >= IDM_VOL_BASE && id < IDM_VOL_BASE + 4) {
         st.volIdx = static_cast<int>(id - IDM_VOL_BASE);
+        ctx.audio.SetVolume(st.volIdx);
         SaveSettings(st, hwnd);
     } else if (id >= IDM_WORD_BASE && id < IDM_WORD_BASE + 2) {
         st.wordIdx = static_cast<int>(id - IDM_WORD_BASE);
         SaveSettings(st, hwnd);
-    } else if (id >= IDM_GOAL_BASE && id < IDM_GOAL_BASE + 5) {
-        st.goalIdx = static_cast<int>(id - IDM_GOAL_BASE);
-        render::Render(hwnd, st, ctx.assets);
-        SaveSettings(st, hwnd);
+    } else if (id >= IDM_GOAL_BASE && id < IDM_GOAL_BASE + 6) {
+        int idx = static_cast<int>(id - IDM_GOAL_BASE);
+        if (idx == 5) {
+            int v = 0;
+            if (PromptNumber(hwnd, L"自定义今日目标", L"每日功德目标（1 - 99999）：",
+                             st.goalIdx == 5 ? static_cast<int>(st.goalCustom) : 100, 1, 99999, v)) {
+                st.goalCustom = static_cast<unsigned>(v);
+                st.goalIdx = 5;
+                render::Render(hwnd, st, ctx.assets);
+                SaveSettings(st, hwnd);
+            }
+        } else {
+            st.goalIdx = idx;
+            render::Render(hwnd, st, ctx.assets);
+            SaveSettings(st, hwnd);
+        }
     } else if (id >= IDM_SKIN_BASE && id < IDM_SKIN_BASE + 4) {
         st.skinIdx = static_cast<int>(id - IDM_SKIN_BASE);
         render::Render(hwnd, st, ctx.assets);
         SaveSettings(st, hwnd);
-    } else if (id >= IDM_ZEN_BASE && id < IDM_ZEN_BASE + 2) {
-        st.zenIdx = static_cast<int>(id - IDM_ZEN_BASE);
-        ctx.audio.ApplyZen(st.zenIdx != 0);
-        SaveSettings(st, hwnd);
+    } else if (id >= IDM_ZEN_BASE && id < IDM_ZEN_BASE + config::kZenMenuCount) {
+        int idx = static_cast<int>(id - IDM_ZEN_BASE);
+        if (idx == config::kZenCustomIdx) {
+            wchar_t buf[4096] = L"";
+            OPENFILENAMEW ofn{};
+            ofn.lStructSize = sizeof(ofn);
+            ofn.hwndOwner = hwnd;
+            ofn.lpstrFilter =
+                L"音频文件\0*.mp3;*.wav;*.m4a;*.aac;*.flac;*.wma\0所有文件\0*.*\0";
+            ofn.lpstrFile = buf;
+            ofn.nMaxFile = static_cast<DWORD>(std::size(buf));
+            ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY;
+            if (GetOpenFileNameW(&ofn)) {
+                int old = st.zenIdx;
+                st.zenFile = buf;
+                if (ctx.audio.ApplyZen(config::kZenCustomIdx, st.zenFile)) {
+                    st.zenIdx = config::kZenCustomIdx;
+                } else {
+                    MessageBoxW(hwnd, L"无法播放该文件（格式不支持或已损坏）", L"电子木鱼",
+                                MB_OK | MB_ICONWARNING);
+                    ctx.audio.ApplyZen(old, st.zenFile);
+                }
+                SaveSettings(st, hwnd);
+            }
+        } else {
+            st.zenIdx = idx;
+            ctx.audio.ApplyZen(st.zenIdx, st.zenFile);
+            SaveSettings(st, hwnd);
+        }
     } else if (id == IDM_QUIT) {
         DestroyWindow(hwnd);
     }

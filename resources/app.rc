@@ -8,8 +8,16 @@
 IDR_FISH   RCDATA "images/muyu.png"
 IDR_GU     RCDATA "images/gu.png"
 IDR_KNOCK  RCDATA "sounds/knock.mp3"
-// 禅定背景音: "Meditation Impromptu 01" by Kevin MacLeod, CC-BY 4.0 (incompetech.com)
-IDR_ZEN    RCDATA "zen.mp3"
+// 禅定背景音（均为 Kevin MacLeod, incompetech.com, CC-BY 4.0）：
+// zen1 Meditation Impromptu 01 / zen2 Fresh Air / zen3 Kalimba Relaxation Music
+// zen4 River Flute / zen5 White Lotus
+IDR_ZEN1   RCDATA "audio/zen1.mp3"
+IDR_ZEN2   RCDATA "audio/zen2.mp3"
+IDR_ZEN3   RCDATA "audio/zen3.mp3"
+IDR_ZEN4   RCDATA "audio/zen4.mp3"
+IDR_ZEN5   RCDATA "audio/zen5.mp3"
+// 达成佛光: 本地 AI 生成的金色光线(黑底，运行时按亮度转透明)，无第三方版权
+IDR_GLOW   RCDATA "images/glow.png"
 
 VS_VERSION_INFO VERSIONINFO
  FILEVERSION 1,0,0,0

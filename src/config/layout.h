@@ -19,7 +19,7 @@ inline constexpr double kPivotX = kStickX + 0.857 * kStickSize;
 inline constexpr double kPivotY = kStickY + 0.857 * kStickSize;
 inline constexpr double kRestDeg = 0, kHitDeg = -35;
 
-// ---- 动画时间轴(ms)：下挥90(急)→回弹220(缓)，鱼身受压与敲击同步 ----
+// ---- 动画时间轴(ms)：下挥90(急)→回弹220(缓)；下挥尽头即触鱼时刻，声音/受压/波纹此刻才起 ----
 inline constexpr ULONGLONG kSwingMs = 90, kBackMs = 310, kSquashMs = 220, kRippleMs = 420,
                            kFloatMs = 1000;
 
@@ -32,10 +32,20 @@ inline constexpr double kScaleDefault = kSizeBig / 2.0;  // 默认“中”
 inline constexpr float kVolLv[4] = {0.0f, 0.35f, 0.7f, 1.0f};  // 静音/小/中/大
 inline constexpr UINT kAutoMs[4] = {0, 1500, 800, 400};        // 自动敲击间隔：关/慢/中/快
 inline constexpr unsigned kGoals[5] = {0, 27, 54, 108, 216};   // 每日目标(佛教数)
+inline constexpr int kGoalMenuCount = 6;  // 5 档预设 + 自定义…
 inline constexpr int kWordCount = 10;
 inline constexpr const char *kWords[kWordCount] = {
     "功德 +1", "佛系 +1", "智慧 +1", "平静 +1", "好运 +1",
     "慈悲 +1", "欢喜 +1", "自在 +1", "清净 +1", "正能量 +1"};
+
+// 禅定音：0=关，1..kZenTrackCount 选曲（全部 Kevin MacLeod, CC-BY 4.0），kZenTrackCount+1=本地文件
+inline constexpr int kZenTrackCount = 5;
+inline constexpr int kZenCustomIdx = kZenTrackCount + 1;
+inline constexpr int kZenMenuCount = kZenTrackCount + 2;  // 含"关"与"本地文件…"
+inline constexpr const char *kZenNames[kZenMenuCount] = {
+    "关", "禅意即兴·钢琴弦乐", "清新空气·钢琴独奏", "卡林巴·拇指琴",
+    "溪流竹笛·流水衬底", "白莲·梵呗唱钵", "本地音频文件…"};
+inline constexpr ULONGLONG kZenMaxMs = 10 * 60 * 1000;  // 本地文件超长截断，控内存
 
 inline constexpr ULONGLONG kComboWindowMs = 1500;  // 连击判定窗口
 inline constexpr int kCritCombos[3] = {10, 30, 50};

@@ -56,11 +56,12 @@
 | `src/core/autorun.*` | 开机自启 | `HKCU\...\Run\WoodenFish` 值存在与否即勾选态 |
 | `src/core/util.*` | 工具 | UTF-8→wstring、`TodayYmd()` 日切、缓动函数 |
 | `src/media/assets.*` | 图像素材 | `FindResource → SHCreateMemStream → Gdiplus::Bitmap::FromStream` |
-| `src/media/audio_engine.*` | 音频 | MF SourceReader 解码 16bit PCM；XAudio2 每击一声部、音调随连击升高、按时间回收；禅定音无限循环 |
+| `src/media/audio_engine.*` | 音频 | MF SourceReader 解码 16bit PCM；XAudio2 每击一声部、音调随连击升高、按时间回收；禅定音 5 曲目懒解码、仅当前曲目常驻、无限循环 |
 | `src/render/skins.*` | 皮肤 | 4 组 ColorMatrix，按 skinIdx 缓存 ImageAttributes |
 | `src/render/painter.*` | 渲染 | 32bpp premultiplied DIB 上画鱼身挤压、波纹、挥槌、飘字、功德、目标进度条 |
 | `src/ui/main_window.*` | 窗口 | 分层窗口、点击敲击、拖动移位、托盘回调、双定时器、F8 热键 |
 | `src/ui/menu.*` | 菜单 | 纯文字 `MF_STRING` + `MF_CHECKED`，命令分发到各子系统 |
+| `src/ui/prompt.*` | 输入框 | 内存 DLGTEMPLATE + `DialogBoxIndirectParamW`，数字输入（自定义目标） |
 
 ## 4. 关键技术选型与理由
 
@@ -73,7 +74,7 @@
 - MF `IMFSourceReader` 一次解码 mp3 → PCM 字节流常驻内存。
 - XAudio2 原生多声部：快速连击时每次 `CreateSourceVoice` 提交独立缓冲，重叠播放自然形成"连打"效果；`SetFrequencyRatio` 让音调随连击升高（+0.4%/击，封顶 50）。
 - 声部回收按 `播放时刻 + 样本时长 + 300ms` 推算，不依赖 `IsStopped` 轮询。
-- 禅定背景音：长样本单独一个 SourceVoice，`XAUDIO2_LOOP_INFINITE`，固定音量 0.45。
+- 禅定背景音：5 首内嵌 mp3（IDR_ZEN1..5）+ 本地文件曲（`MFCreateSourceReaderFromURL`，超长截断 10 分钟并代码内淡入淡出）。`ApplyZen(trackIdx, file)` 选 0=关；选中曲目时才 MF 解码并常驻（换曲释放旧曲 PCM），单独一个 SourceVoice，`XAUDIO2_LOOP_INFINITE`，增益 0.45 × 音量档系数。
 
 ### 4.3 皮肤：ColorMatrix 调色而非多套素材
 同一张位图用 `ImageAttributes + ColorMatrix` 实时变换（sepia 鎏金 / 去色偏冷水墨 / 通道重排霓虹），零额外体积。

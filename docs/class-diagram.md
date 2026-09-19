@@ -30,9 +30,13 @@ classDiagram
         +int wordIdx
         +int skinIdx
         +int zenIdx
-        +int startX startY
+        +unsigned goalCustom
+        +wstring zenFile
         +double dpi
         +ULONGLONG knockAt
+        +ULONGLONG impactAt
+        +bool impactPending
+        +double impactX impactY
         +int combo
         +ULONGLONG comboAt
         +vector~FloatText~ floats
@@ -57,19 +61,22 @@ classDiagram
 
     class AudioEngine {
         -vector~BYTE~ knockPcm_
-        -vector~BYTE~ zenPcm_
+        -ZenTrack zen_
+        -int zenLoaded_
         -WAVEFORMATEX knockWf_
-        -WAVEFORMATEX zenWf_
         -DWORD knockDurMs_
+        -int volIdx_
         -IXAudio2* xa2_
         -IXAudio2MasteringVoice* master_
         -vector~Playing~ voices_
         -IXAudio2SourceVoice* zenVoice_
         +Init() bool
-        +PlayKnock(volIdx, combo) void
-        +ApplyZen(on) void
+        +SetVolume(volIdx) void
+        +PlayKnock(combo) void
+        +ApplyZen(trackIdx) void
         +Shutdown() void
         -DecodeRes(rid, pcm, wf, durMs) bool$
+        -EnsureZenLoaded(trackIdx) bool
     }
 
     class Settings {
@@ -117,6 +124,7 @@ classDiagram
         +AddTrayIcon(ctx, hInst) void$
         +RemoveTrayIcon(ctx) void$
         +DoKnock(ctx, x, y) void$
+        +Strike(ctx) void$（cpp 内部：下挥 kSwingMs 后的触鱼结算）
         +ApplyScale(ctx, s) void$
         +ApplyAuto(ctx) void$
         +ToggleFish(ctx) void$
@@ -176,15 +184,16 @@ classDiagram
 ## 3. 关键类型说明
 
 ### `AppState`（唯一的可变状态容器）
-- **持久字段**：`merit daily dailyDate scale topmost volIdx autoIdx goalIdx wordIdx skinIdx zenIdx startX startY` —— 与注册表一一对应，`Settings` 负责搬运。
-- **瞬态字段**：`dpi knockAt combo comboAt floats captured dragging lastX lastY` —— 仅影响动画，不落盘（`dpi` 每次启动重算）。
+- **持久字段**：`merit daily dailyDate scale topmost volIdx autoIdx goalIdx goalCustom wordIdx skinIdx zenIdx zenFile` —— 与注册表一一对应，`Settings` 负责搬运。
+- **瞬态字段**：`dpi knockAt impactAt impactPending impactX impactY combo comboAt floats captured dragging lastX lastY` —— 仅影响动画，不落盘（`dpi` 每次启动重算）。`knockAt` 是棒槌起挥时刻，声音/挤压/波纹/飘字以 `impactAt`（触鱼）为时基。
 - `EffScale() = scale × dpi`：所有"基准坐标 ↔ 物理像素"换算的唯一入口。
 - 渲染层只持有 `const AppState&`，写状态的路径只有 UI 层（敲击/菜单）和 `Settings::LoadSettings`。
 
 ### `AudioEngine`（RAII 风格但显式 Shutdown）
-- `Init()`：解码敲击音（失败即整体失败）→ 解码禅定音（失败仅禁用该功能）→ 创建 XAudio2 设备与 MasteringVoice。
-- `PlayKnock(volIdx, combo)`：先回收到期声部，再建瞬时声部；`endAt = now + 样本时长 + 300ms`。
-- `ApplyZen(on)`：销毁并（按需）重建循环声部；幂等，可任意次调用。
+- `Init()`：仅解码敲击音（失败即整体失败）→ 创建 XAudio2 设备与 MasteringVoice。禅定曲目在 `ApplyZen` 选中时才懒解码。
+- `SetVolume(volIdx)`：记录音量档；对禅定音用现有声部实时 `SetVolume`（0.45×档位系数），循环不中断、不从零重播。
+- `PlayKnock(combo)`：先回收到期声部，再建瞬时声部（增益取当前音量档）；`endAt = now + 样本时长 + 300ms`。
+- `ApplyZen(trackIdx)`：0=关（释放 PCM）；1..5 选曲，`EnsureZenLoaded` 按需解码且只常驻当前曲目，销毁并重建循环声部；幂等。
 - `Shutdown()`：Zen 声部 → 敲击声部池 → Mastering → 设备，逆序释放。
 
 ### `AppContext`

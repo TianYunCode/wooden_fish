@@ -31,13 +31,15 @@ Gdiplus::Bitmap *LoadResBitmap(int id) {
 bool Assets::Load() {
     fish = LoadResBitmap(IDR_FISH);
     gu = LoadResBitmap(IDR_GU);
+    glow = LoadResBitmap(IDR_GLOW);  // 可选素材
     return fish && gu;
 }
 
 void Assets::Free() {
     delete fish;
     delete gu;
-    fish = gu = nullptr;
+    delete glow;
+    fish = gu = glow = nullptr;
 }
 
 }  // namespace muyu::media

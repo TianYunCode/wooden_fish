@@ -15,6 +15,7 @@ add_executable(muyu WIN32
     src/render/painter.cpp
     src/ui/main_window.cpp
     src/ui/menu.cpp
+    src/ui/prompt.cpp
     resources/app.rc
 )
 
@@ -30,12 +31,14 @@ target_compile_options(muyu PRIVATE /utf-8)
 
 target_link_libraries(muyu PRIVATE
     gdiplus mfplat mfreadwrite mfuuid xaudio2
-    shell32 shlwapi ole32 user32 gdi32 advapi32
+    shell32 shlwapi ole32 user32 gdi32 advapi32 comdlg32
 )
 
 set(OUT_DIR "${CMAKE_SOURCE_DIR}/build")
 set_target_properties(muyu PROPERTIES OUTPUT_NAME "电子木鱼")
 foreach(cfg Debug Release RelWithDebInfo MinSizeRel)
     string(TOUPPER ${cfg} UC)
-    set_target_properties(muyu PROPERTIES RUNTIME_OUTPUT_DIRECTORY_${UC} "${OUT_DIR}")
+    set_target_properties(muyu PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY_${UC} "${OUT_DIR}"
+        PDB_OUTPUT_DIRECTORY_${UC} "${CMAKE_BINARY_DIR}/pdb")
 endforeach()

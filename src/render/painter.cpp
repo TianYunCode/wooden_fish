@@ -41,38 +41,44 @@ void Render(HWND hwnd, const AppState &st, media::Assets &assets) {
         g.ScaleTransform(s, s);
 
         ULONGLONG now = GetTickCount64();
-        long long dt = static_cast<long long>(now - st.knockAt);
+        long long dt = static_cast<long long>(now - st.knockAt);    // 棒槌挥动时基
+        long long idt = static_cast<long long>(now - st.impactAt);  // 触鱼效果时基(声/缩/波纹)
         ImageAttributes *skin = GetSkinAttr(st.skinIdx);
         RectF fishRect(static_cast<REAL>(config::kFishLeft), static_cast<REAL>(config::kFishTop),
                        static_cast<REAL>(config::kFishW), static_cast<REAL>(config::kFishH));
 
         // 鱼身：受压均匀缩放 1→0.94→1 正弦往返
         double squash = 1.0;
-        if (dt >= 0 && dt < static_cast<long long>(config::kSquashMs))
-            squash = 1.0 - 0.06 * std::sin(kPi * dt / config::kSquashMs);
+        if (idt >= 0 && idt < static_cast<long long>(config::kSquashMs))
+            squash = 1.0 - 0.06 * std::sin(kPi * idt / config::kSquashMs);
         Matrix save;
         g.GetTransform(&save);
         g.TranslateTransform(static_cast<REAL>(config::kFishCx), static_cast<REAL>(config::kFishCy));
         g.ScaleTransform(static_cast<REAL>(squash), static_cast<REAL>(squash));
         g.TranslateTransform(static_cast<REAL>(-config::kFishCx), static_cast<REAL>(-config::kFishCy));
-        // 功德达成：鱼身后金色光晕
-        if (st.goalIdx > 0 && st.daily >= config::kGoals[st.goalIdx]) {
+        // 功德达成：鱼身后金色佛光（素材自带 alpha 通道；慢速旋转 + 明暗呼吸）
+        if (st.GoalTotal() > 0 && st.daily >= st.GoalTotal() && assets.glow) {
             double pulse = 0.75 + 0.25 * std::sin(static_cast<double>(now) / 400.0);
-            for (int i = 4; i >= 1; --i) {
-                SolidBrush halo(Color(static_cast<BYTE>(16 * pulse), 0xFF, 0xD8, 0x66));
-                g.FillEllipse(&halo,
-                              static_cast<REAL>(config::kFishCx - 190 - i * 10),
-                              static_cast<REAL>(config::kFishCy - 170 - i * 10),
-                              static_cast<REAL>(380 + i * 20), static_cast<REAL>(380 + i * 20));
-            }
+            ImageAttributes glowIa;
+            ColorMatrix m{};
+            m.m[0][0] = m.m[1][1] = m.m[2][2] = 1.0f;
+            m.m[3][3] = static_cast<REAL>(0.75 * pulse);  // 只缩 alpha，保留素材透明度
+            glowIa.SetColorMatrix(&m);
+            GraphicsState gs = g.Save();
+            g.TranslateTransform(static_cast<REAL>(config::kFishCx), static_cast<REAL>(config::kFishCy));
+            g.RotateTransform(
+                static_cast<REAL>(std::fmod(static_cast<double>(now) / 250.0, 360.0)));  // 90s 一转
+            g.DrawImage(assets.glow, RectF(-225, -225, 450, 450), 0, 0, assets.glow->GetWidth(),
+                        assets.glow->GetHeight(), UnitPixel, &glowIa);
+            g.Restore(gs);
         }
         g.DrawImage(assets.fish, fishRect, 0, 0, assets.fish->GetWidth(), assets.fish->GetHeight(),
                     UnitPixel, skin);
         g.SetTransform(&save);
 
         // 音波纹
-        if (dt >= 0 && dt < static_cast<long long>(config::kRippleMs)) {
-            double t = static_cast<double>(dt) / config::kRippleMs;
+        if (idt >= 0 && idt < static_cast<long long>(config::kRippleMs)) {
+            double t = static_cast<double>(idt) / config::kRippleMs;
             for (int i = 0; i < 2; ++i) {
                 double tt = t - i * 0.18;
                 if (tt <= 0 || tt >= 1) continue;
@@ -133,7 +139,7 @@ void Render(HWND hwnd, const AppState &st, media::Assets &assets) {
                          &sf, &br);
         }
         // 今日目标：木鱼正下方居中，文字+进度条
-        if (st.goalIdx > 0) {
+        if (unsigned gt = st.GoalTotal()) {
             double gpx = 12.0;
             if (gpx * s < 11.0) gpx = 11.0 / s;
             Font f(&fam, static_cast<REAL>(gpx), FontStyleRegular, UnitPixel);
@@ -141,11 +147,13 @@ void Render(HWND hwnd, const AppState &st, media::Assets &assets) {
             sf.SetAlignment(StringAlignmentCenter);
             sf.SetLineAlignment(StringAlignmentCenter);
             SolidBrush br(Color(200, 0x6B, 0x52, 0x3A));
-            std::wstring gt = U8("今日 ") + std::to_wstring(st.daily) + L"/" +
-                              std::to_wstring(config::kGoals[st.goalIdx]);
-            g.DrawString(gt.c_str(), -1, &f,
-                         RectF(static_cast<REAL>(config::kFishCx - 165), 417, 330, 20), &sf, &br);
-            double ratio = static_cast<double>(st.daily) / config::kGoals[st.goalIdx];
+            std::wstring gts = U8("今日 ") + std::to_wstring(st.daily) + L"/" + std::to_wstring(gt);
+            // 文字底边固定在进度条上方，字号被物理像素下限放大时向上生长，避免被裁
+            g.DrawString(gts.c_str(), -1, &f,
+                         RectF(static_cast<REAL>(config::kFishCx - 165),
+                               static_cast<REAL>(437 - gpx * 1.9), 330, static_cast<REAL>(gpx * 1.9)),
+                         &sf, &br);
+            double ratio = static_cast<double>(st.daily) / gt;
             if (ratio > 1.0) ratio = 1.0;
             const double bw = 200, bx = config::kFishCx - bw / 2, by = 440;
             SolidBrush trackBg(Color(70, 0x6B, 0x52, 0x3A));
@@ -174,10 +182,13 @@ void Render(HWND hwnd, const AppState &st, media::Assets &assets) {
 }
 
 bool AnimActive(const AppState &st) {
+    if (st.impactPending)
+        return true;  // 下挥进行中，等待触鱼
     ULONGLONG dt = GetTickCount64() - st.knockAt;
     if (dt < config::kFloatMs + 100 || !st.floats.empty())
         return true;
-    return st.goalIdx > 0 && st.daily >= config::kGoals[st.goalIdx];  // 达成光晕持续呼吸
+    unsigned gt = st.GoalTotal();
+    return gt > 0 && st.daily >= gt;  // 达成光晕持续呼吸
 }
 
 }  // namespace muyu::render
