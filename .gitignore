@@ -1,0 +1,12 @@
+# 构建产物与中间文件
+build_msvc/
+build/
+*.obj
+*.exe
+*.ilk
+*.pdb
+
+# 编辑器
+.vs/
+.vscode/
+*.user

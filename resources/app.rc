@@ -1,0 +1,39 @@
+#pragma code_page(65001)
+#include <windows.h>
+#include "resource.h"
+
+// 图标资源固定用数字 1，与托盘图标加载 (MAKEINTRESOURCEW(1)) 对应
+1 ICON "app_icon.ico"
+
+IDR_FISH   RCDATA "images/muyu.png"
+IDR_GU     RCDATA "images/gu.png"
+IDR_KNOCK  RCDATA "sounds/knock.mp3"
+// 禅定背景音: "Meditation Impromptu 01" by Kevin MacLeod, CC-BY 4.0 (incompetech.com)
+IDR_ZEN    RCDATA "zen.mp3"
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 1,0,0,0
+ PRODUCTVERSION 1,0,0,0
+ FILEFLAGSMASK 0x3fL
+ FILEFLAGS 0x0L
+ FILEOS VOS_NT_WINDOWS32
+ FILETYPE VFT_APP
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "080404b0"
+        BEGIN
+            VALUE "FileDescription", "电子木鱼"
+            VALUE "InternalName", "电子木鱼"
+            VALUE "OriginalFilename", "电子木鱼.exe"
+            VALUE "ProductName", "电子木鱼"
+            VALUE "ProductVersion", "1.0.0.0"
+            VALUE "FileVersion", "1.0.0.0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x804, 1200
+    END
+END
