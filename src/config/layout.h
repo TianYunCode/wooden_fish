@@ -58,4 +58,8 @@ inline constexpr ULONGLONG kComboWindowMs = 1500;  // 连击判定窗口
 inline constexpr int kCritCombos[3] = {10, 30, 50};
 inline constexpr int kMaxFloats = 24;
 
+// 禅定音睡眠定时档位(分钟)，0=关；会话级，不持久化
+inline constexpr UINT kSleepMin[6] = {0, 15, 30, 45, 60, 90};
+inline constexpr UINT kZenFadeSteps = 50;    // 淡出 50×100ms = 5s
+
 }  // namespace muyu::config

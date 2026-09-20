@@ -16,6 +16,9 @@ classDiagram
         +HWND hwnd
         +NOTIFYICONDATAW nid
         +HICON trayIcon
+        +bool animOn
+        +UINT sleepMin
+        +int fadeStep
     }
 
     class AppState {
@@ -65,6 +68,7 @@ classDiagram
         -WAVEFORMATEX knockWf_
         -DWORD knockDurMs_
         -int volIdx_
+        -double zenFade_
         -IXAudio2* xa2_
         -IXAudio2MasteringVoice* master_
         -vector~Playing~ voices_
@@ -202,13 +206,14 @@ classDiagram
 
 ### `AudioEngine`（RAII 风格但显式 Shutdown）
 - `Init()`：仅解码敲击音（失败即整体失败）→ 创建 XAudio2 设备与 MasteringVoice。禅定曲目在 `ApplyZen` 时才解码。
-- `SetVolume(volIdx)`：记录音量档；对禅定音用现有声部实时 `SetVolume`（0.45×档位系数），循环不中断、不从零重播。
+- `SetVolume(volIdx)`：记录音量档；对禅定音用现有声部实时 `SetVolume`（0.45×档位系数×淡出系数），循环不中断、不从零重播。
+- `SetZenFade(f)`：睡眠定时到点时 UI 逐档下调的禅定淡出系数（0..1）；`ApplyZen` 显式选曲自动复位为 1。
 - `PlayKnock(combo)`：先回收到期声部，再建瞬时声部（增益取当前音量档）；`endAt = now + 样本时长 + 300ms`。
 - `ApplyZen(trackIdx, file)`：0=关；1..7 选曲（7=本地文件）。先 `StopZenStream`（置事件→join→毁声部→释放整曲 PCM）；主线程建 SourceReader（坏文件当场返回 false），再起独立 `ZenDecodeThread` 一次性解完整曲 PCM（每样本块轮询停止事件），解完后建 `LOOP_INFINITE` 声部起播——解码线程与 XAudio2 播放线程分离，播放期间零解码。整曲 PCM 存于 `zenPcm_`，换曲即释放。
 - `Shutdown()`：StopZenStream → 敲击声部池 → Mastering → 设备，逆序释放。
 
 ### `AppContext`
-纯数据结构（无行为），是"这个应用实例"的根对象。单实例设计，因此 `WndProc` 里经 `WM_NCCREATE` 的 `CREATESTRUCTW::lpCreateParams` 保存一次 `GWLP_USERDATA` 即可全程取回，避免全局变量。
+纯数据结构（无行为），是"这个应用实例"的根对象。`animOn/sleepMin/fadeStep` 为会话级瞬态（动画定时器在挂状态、睡眠档位分钟数、淡出步数），不落盘。单实例设计，因此 `WndProc` 里经 `WM_NCCREATE` 的 `CREATESTRUCTW::lpCreateParams` 保存一次 `GWLP_USERDATA` 即可全程取回，避免全局变量。
 
 ---
 

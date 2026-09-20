@@ -17,6 +17,9 @@ struct AppContext {
     HWND hwnd = nullptr;
     NOTIFYICONDATAW nid = {};
     HICON trayIcon = nullptr;
+    bool animOn = false;   // 16ms 动画定时器是否在跑（按需渲染）
+    UINT sleepMin = 0;     // 禅定音睡眠定时档位(分钟)，0=关，会话级
+    int fadeStep = 0;      // 淡出进度：0..kZenFadeSteps，>0 表示淡出进行中
 };
 
 }  // namespace muyu

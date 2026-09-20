@@ -49,6 +49,19 @@ void Create(AppContext &ctx, HINSTANCE hInst) {
                                hInst, &ctx);
     if (!ctx.hwnd)
         return;
+    // Per-Monitor v2：初始尺寸按系统 DPI 算的，创建后校正为所在显示器的真实 DPI
+    if (HMODULE u = GetModuleHandleW(L"user32.dll")) {
+        auto getDpiW = reinterpret_cast<UINT(WINAPI *)(HWND)>(
+            GetProcAddress(u, "GetDpiForWindow"));
+        UINT d = getDpiW ? getDpiW(ctx.hwnd) : 0;
+        double nd = d / 96.0;
+        if (nd > 0 && (nd > st.dpi + 0.01 || nd < st.dpi - 0.01)) {
+            st.dpi = nd;
+            w = static_cast<int>(config::kW * st.EffScale() + 0.5);
+            h = static_cast<int>(config::kH * st.EffScale() + 0.5);
+            SetWindowPos(ctx.hwnd, nullptr, px, py, w, h, SWP_NOZORDER | SWP_NOACTIVATE);
+        }
+    }
     if (!st.topmost)
         SetWindowPos(ctx.hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
 }
@@ -116,6 +129,7 @@ void DoKnock(AppContext &ctx, double x, double y) {
     st.impactX = x;
     st.impactY = y;
     render::Render(ctx.hwnd, st, ctx.assets);
+    SyncAnim(ctx);  // 有活了才挂 16ms 动画定时器
 }
 
 void ApplyScale(AppContext &ctx, double s) {
@@ -135,6 +149,18 @@ void ApplyAuto(AppContext &ctx) {
         SetTimer(ctx.hwnd, kTimerAuto, config::kAutoMs[ctx.state.autoIdx], nullptr);
 }
 
+// 按需渲染：只在动画（挥槌/飘字/达成呼吸）进行中挂 16ms 定时器，静止即摘除
+void SyncAnim(AppContext &ctx) {
+    bool need = render::AnimActive(ctx.state);
+    if (need && !ctx.animOn) {
+        SetTimer(ctx.hwnd, kTimerAnim, 16, nullptr);
+        ctx.animOn = true;
+    } else if (!need && ctx.animOn) {
+        KillTimer(ctx.hwnd, kTimerAnim);
+        ctx.animOn = false;
+    }
+}
+
 void ToggleFish(AppContext &ctx) {
     if (IsWindowVisible(ctx.hwnd)) {
         ShowWindow(ctx.hwnd, SW_HIDE);
@@ -142,6 +168,7 @@ void ToggleFish(AppContext &ctx) {
         ShowWindow(ctx.hwnd, SW_SHOWNA);
         render::Render(ctx.hwnd, ctx.state, ctx.assets);
         UpdateWindow(ctx.hwnd);
+        SyncAnim(ctx);
     }
 }
 
@@ -212,6 +239,29 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                 DoKnock(*pctx, config::kHitX + 15, config::kHitY - 25);
             return 0;
         }
+        if (wp == kTimerSleep) {  // 睡眠倒计时到点：开始 5s 淡出
+            KillTimer(hwnd, kTimerSleep);
+            if (st.zenIdx) {
+                pctx->fadeStep = 0;
+                SetTimer(hwnd, kTimerFade, 100, nullptr);
+            }
+            return 0;
+        }
+        if (wp == kTimerFade) {  // 每 100ms 降一档增益，归零即停
+            ++pctx->fadeStep;
+            double f = 1.0 - static_cast<double>(pctx->fadeStep) / config::kZenFadeSteps;
+            if (f <= 0.0) {
+                KillTimer(hwnd, kTimerFade);
+                pctx->fadeStep = 0;
+                pctx->sleepMin = 0;
+                pctx->audio.ApplyZen(0);
+                st.zenIdx = 0;
+                SaveSettings(st, hwnd);
+            } else {
+                pctx->audio.SetZenFade(f);
+            }
+            return 0;
+        }
         if (st.impactPending && GetTickCount64() - st.knockAt >= config::kSwingMs)
             Strike(*pctx);  // 槌头落到位：此刻发声并触发鱼身效果
         st.floats.erase(std::remove_if(st.floats.begin(), st.floats.end(),
@@ -219,9 +269,24 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                                            return GetTickCount64() - f.born > config::kFloatMs;
                                        }),
                         st.floats.end());
-        if (render::AnimActive(st))
-            render::Render(hwnd, st, pctx->assets);
+        if (render::AnimActive(st)) {
+            if (IsWindowVisible(hwnd))
+                render::Render(hwnd, st, pctx->assets);
+        } else {  // 动画结束：摘除定时器，补画最后一帧收尾
+            KillTimer(hwnd, kTimerAnim);
+            pctx->animOn = false;
+            if (IsWindowVisible(hwnd))
+                render::Render(hwnd, st, pctx->assets);
+        }
         return 0;
+    case WM_DPICHANGED: {  // 跨显示器/改缩放：按系统建议矩形重设窗口
+        st.dpi = HIWORD(wp) / 96.0;
+        RECT *sug = reinterpret_cast<RECT *>(lp);
+        SetWindowPos(hwnd, nullptr, sug->left, sug->top, sug->right - sug->left,
+                     sug->bottom - sug->top, SWP_NOZORDER | SWP_NOACTIVATE);
+        render::Render(hwnd, st, pctx->assets);
+        return 0;
+    }
     case WM_HOTKEY:
         if (wp == 1)
             DoKnock(*pctx, config::kFishCx, config::kFishCy - 60);

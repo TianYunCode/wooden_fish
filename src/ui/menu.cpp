@@ -85,6 +85,16 @@ void ShowMenu(AppContext &ctx, int x, int y, bool fromTray) {
         AddRadio(s, IDM_ZEN_BASE, config::kZenNames, config::kZenMenuCount, st.zenIdx);
         AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(s), L"禅定音");
     }
+    {
+        HMENU s = CreatePopupMenu();
+        const char *sleepNames[] = {"关", "15 分钟", "30 分钟", "45 分钟", "60 分钟", "90 分钟"};
+        int cur = 0;
+        for (int i = 0; i < 6; ++i)
+            if (ctx.sleepMin == config::kSleepMin[i])
+                cur = i;
+        AddRadio(s, IDM_SLEEP_BASE, sleepNames, 6, cur);
+        AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(s), L"睡眠定时(禅定音)");
+    }
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(menu, MF_STRING, IDM_LEDGER, L"功德簿");
     AppendMenuW(menu, MF_STRING, IDM_RESET, L"重置功德");
@@ -185,11 +195,13 @@ void ShowMenu(AppContext &ctx, int x, int y, bool fromTray) {
                 st.goalCustom = static_cast<unsigned>(v);
                 st.goalIdx = 5;
                 render::Render(hwnd, st, ctx.assets);
+                SyncAnim(ctx);
                 SaveSettings(st, hwnd);
             }
         } else {
             st.goalIdx = idx;
             render::Render(hwnd, st, ctx.assets);
+            SyncAnim(ctx);  // 改为已达成档需起呼吸动画；改小档静止后自然停
             SaveSettings(st, hwnd);
         }
     } else if (id >= IDM_SKIN_BASE && id < IDM_SKIN_BASE + 4) {
@@ -198,6 +210,8 @@ void ShowMenu(AppContext &ctx, int x, int y, bool fromTray) {
         SaveSettings(st, hwnd);
     } else if (id >= IDM_ZEN_BASE && id < IDM_ZEN_BASE + config::kZenMenuCount) {
         int idx = static_cast<int>(id - IDM_ZEN_BASE);
+        KillTimer(hwnd, kTimerFade);  // 手动切曲作废进行中的睡眠淡出（ApplyZen 内复位增益）
+        ctx.fadeStep = 0;
         if (idx == config::kZenCustomIdx) {
             wchar_t buf[4096] = L"";
             OPENFILENAMEW ofn{};
@@ -225,6 +239,14 @@ void ShowMenu(AppContext &ctx, int x, int y, bool fromTray) {
             ctx.audio.ApplyZen(st.zenIdx, st.zenFile);
             SaveSettings(st, hwnd);
         }
+    } else if (id >= IDM_SLEEP_BASE && id < IDM_SLEEP_BASE + 6) {
+        ctx.sleepMin = config::kSleepMin[id - IDM_SLEEP_BASE];
+        KillTimer(hwnd, kTimerSleep);
+        KillTimer(hwnd, kTimerFade);
+        ctx.fadeStep = 0;
+        ctx.audio.SetZenFade(1.0);  // 若淡出进行中，回到正常音量
+        if (ctx.sleepMin)
+            SetTimer(hwnd, kTimerSleep, ctx.sleepMin * 60000u, nullptr);
     } else if (id == IDM_QUIT) {
         DestroyWindow(hwnd);
     }

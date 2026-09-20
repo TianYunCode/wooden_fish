@@ -170,7 +170,14 @@ bool AudioEngine::Init() {
 void AudioEngine::SetVolume(int volIdx) {
     volIdx_ = volIdx;
     if (zenVoice_)
-        zenVoice_->SetVolume(0.45f * config::kVolLv[volIdx_]);  // 实时改增益，循环不中断
+        zenVoice_->SetVolume(0.45f * config::kVolLv[volIdx_] *
+                             static_cast<float>(zenFade_));  // 实时改增益，循环不中断
+}
+
+void AudioEngine::SetZenFade(double f) {
+    zenFade_ = f < 0.0 ? 0.0 : (f > 1.0 ? 1.0 : f);
+    if (zenVoice_)
+        zenVoice_->SetVolume(0.45f * config::kVolLv[volIdx_] * static_cast<float>(zenFade_));
 }
 
 void AudioEngine::PlayKnock(int combo) {
@@ -281,7 +288,8 @@ DWORD WINAPI AudioEngine::ZenDecodeThread(LPVOID param) {
             b.AudioBytes = static_cast<UINT32>(self->zenPcm_.size());
             b.pAudioData = self->zenPcm_.data();
             b.LoopCount = XAUDIO2_LOOP_INFINITE;
-            v->SetVolume(0.45f * config::kVolLv[self->volIdx_]);
+            v->SetVolume(0.45f * config::kVolLv[self->volIdx_] *
+                         static_cast<float>(self->zenFade_));
             if (FAILED(v->SubmitSourceBuffer(&b)) || FAILED(v->Start(0))) {
                 v->DestroyVoice();
                 std::vector<BYTE>().swap(self->zenPcm_);
@@ -304,6 +312,7 @@ bool AudioEngine::ApplyZen(int trackIdx, const std::wstring &customFile) {
     if (!xa2_)
         return false;
     StopZenStream();  // 上一曲：线程、声部、整曲 PCM 全部清理
+    zenFade_ = 1.0;   // 显式选曲视为从头播放，作废进行中的淡出
     if (trackIdx == 0)
         return true;
     if (trackIdx < 1 || trackIdx > config::kZenCustomIdx)

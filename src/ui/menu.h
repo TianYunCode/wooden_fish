@@ -21,6 +21,7 @@ enum MenuId : WORD {
     IDM_WORD_BASE = 241,  // 固定/随机
     IDM_SKIN_BASE = 251,  // 原木/鎏金/水墨/霓虹
     IDM_ZEN_BASE = 261,   // 关/开
+    IDM_SLEEP_BASE = 271, // 睡眠定时：关/15/30/45/60/90 分钟
 };
 
 // 在屏幕坐标 (x,y) 弹出菜单并处理选择；fromTray=true 表示由托盘图标唤起

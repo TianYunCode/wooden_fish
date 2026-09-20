@@ -102,6 +102,8 @@ build_msvc/           CMake 二进制目录（可整体删除重建，勿提交 
 - **加一个设置项**：`AppState` 加字段 → `LoadSettings/SaveSettings` 加键 → 菜单 `IDM_*_BASE` 加组 → `ShowMenu` 建子菜单+分发分支。
 - **换/加内置禅曲**：替换或追加 `resources/audio/zenN.mp3`（对应 IDR_ZENN），并同步 `config::kZenNames` 与 `kZenTrackCount`。素材须按同一管线离线处理：两遍 loudnorm 归一 -23 LUFS / TP -2.1 → 3s 淡入淡出 → 44.1k 立体声 80k CBR。**一律用完整曲目、不裁切**（禅定音整曲解码进内存后才起播，曲长与常驻内存成正比，约 176KB/秒）。**编码后必须 `ffmpeg -af volumedetect` 验非静音、完整解码验时长**（注意：CBR mp3 的容器头时长可能虚短，以 `ffmpeg -i x -f null -` 解出的 time 为准，勿信 ffprobe duration）。用户也可在菜单"本地音频文件…"自选，无需重编。
 - **改敲击时序**：鼠标路径为**左键抬起才起挥**（`WM_LBUTTONUP` 且按住期间未拖动；拖过只移动窗口不敲）；起挥在 `ui::DoKnock`（记 `knockAt`），触鱼结算在 `ui::Strike`（由 16ms 动画定时器在 `kSwingMs` 后驱动）；声音/挤压/波纹一律以 `impactAt` 为时基，勿再挂到按下时刻。
+- **加新的常驻/持续动画**：动画 16ms 定时器**按需挂载**（`ui::SyncAnim` 依 `render::AnimActive` 起停，静止即摘表省 CPU）。新增状态型动画（类似"达成呼吸"）必须并入 `AnimActive` 判定，否则定时器不会为它启动；菜单里改动能引起动画起停的（如目标档），Render 之后记得补 `SyncAnim(ctx)`。
+- **睡眠定时（禅定音）**：`ctx.sleepMin` 会话级不落盘；`kTimerSleep` 到点挂 `kTimerFade`（100ms×50 步 `SetZenFade` 降增益），走完 `ApplyZen(0)` 并把 zen=0 落盘；任何手动切曲/改档都要先 `KillTimer(kTimerFade)` 并复位系数。
 - **升版本号**：只改 `resources/version.h`（三数字 + 字符串两处），exe 文件属性（app.rc VERSIONINFO）与"关于"页（`config::kVersion`）自动同步；发版说明见 README Releases。
 
 ## 8. 验证清单（改完跑一遍）

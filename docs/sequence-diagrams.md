@@ -15,7 +15,7 @@ sequenceDiagram
     participant W as ui::Create / WndProc
 
     OS->>M: wWinMain(hInst)
-    M->>M: GdiplusStartup + SetProcessDPIAware
+    M->>M: GdiplusStartup + 动态加载 SetProcessDpiAwarenessContext(PerMonitorV2)，失败退回 SetProcessDPIAware
     M->>M: state.dpi = GetDpiForSystem()/96
     M->>REG: LoadSettings(state)
     REG-->>M: 功德/设置/自定义目标值 goalX/本地禅曲路径 zenFile（窗口位置不落盘）
@@ -34,8 +34,9 @@ sequenceDiagram
     OS->>W: WM_NCCREATE
     W->>W: GWLP_USERDATA ← &ctx
     W->>W: 位置固定工作区右下角（距边 40px，每次启动如此）
+    W->>W: Per-Monitor 校正：GetDpiForWindow 与系统 DPI 不符则重设窗口尺寸
     M->>OS: AddTrayIcon(Shell_NotifyIconW NIM_ADD)
-    M->>OS: SetTimer(动画16ms) + ApplyAuto + RegisterHotKey(F8)
+    M->>OS: SyncAnim（动画定时器按需挂载）+ ApplyAuto + RegisterHotKey(F8)
     M->>M: render::Render（首帧）
     M->>OS: ShowWindow / 进入消息循环
 ```
@@ -81,27 +82,31 @@ sequenceDiagram
     K->>REG: SaveSettings（功德即时落盘，断电不丢）
 ```
 
-## 3. 定时器驱动：动画帧 与 自动敲击
+## 3. 定时器驱动：按需动画 / 自动敲击 / 睡眠淡出
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant T1 as Timer#1 (16ms)
-    participant T2 as Timer#2 (400/800/1500ms)
+    participant T1 as Timer#1 (16ms 动画,按需挂载)
+    participant T2 as Timer#2 (400/800/1500ms 自动敲)
+    participant T3 as Timer#3 睡眠倒计时(分钟级)
+    participant T4 as Timer#4 淡出(100ms×50)
     participant WP as WndProc
     participant K as ui::DoKnock
     participant P as render::Painter
+    participant AE as AudioEngine
 
-    loop 每 16ms
+    Note over T1: 静止时 Timer#1 不存在（零唤醒、CPU≈0）；DoKnock/达成呼吸等经 SyncAnim 挂载
+    loop 动画进行中的每一帧
         T1->>WP: WM_TIMER(1)
         alt impactPending 且 now-knockAt ≥ kSwingMs
             WP->>K: Strike()（触鱼结算：发声+挤压+波纹+飘字+计数+落盘）
         end
         WP->>WP: 清除 born 超过 1s 的飘字
         alt AnimActive（下挥进行中 或 动画未散 或 目标达成光晕呼吸）
-            WP->>P: Render（推进 squash/波纹/挥槌/飘字 相位）
+            WP->>P: Render（仅窗口可见时；推进 squash/波纹/挥槌/飘字 相位）
         else 静止
-            WP->>WP: 跳过重绘（省电）
+            WP->>WP: KillTimer(1) 摘表 + 补画最后一帧收尾
         end
     end
 
@@ -109,6 +114,18 @@ sequenceDiagram
         T2->>WP: WM_TIMER(2)
         WP->>K: DoKnock(kHitX+15, kHitY-25)（槌头落点附近）
         Note over K: 与手动敲击同一条链路
+    end
+
+    opt 睡眠定时已启用（会话级，不落盘）
+        T3->>WP: WM_TIMER(3) 到点
+        WP->>T4: 挂载淡出定时器（若禅定音开着）
+        loop 50 步 × 100ms
+            T4->>WP: WM_TIMER(4)
+            WP->>AE: SetZenFade(1 - step/50)（增益逐档下降）
+        end
+        T4->>WP: 最后一步 f≤0
+        WP->>AE: ApplyZen(0)（毁声部+释放整曲 PCM）→ zen=0 落盘
+        Note over WP: 淡出期间手动切曲/改档即作废（KillTimer+系数复位）
     end
 
     opt 全局热键 F8（任何前台程序下）
@@ -138,11 +155,13 @@ sequenceDiagram
     else IDM_GOAL_BASE+n（n=5 "自定义…"）
         MU->>SYS: PromptNumber 数字输入框（内存 DLGTEMPLATE）→ 设定 goalCustom 且 goalIdx=5 → Render
     else IDM_GOAL_BASE+n（预设档）
-        MU->>SYS: state.goalIdx=n → Render
+        MU->>SYS: state.goalIdx=n → Render → SyncAnim（改为已达成档要起呼吸动画）
     else IDM_ZEN_BASE+n（n=kZenCustomIdx "本地音频文件…"）
-        MU->>SYS: GetOpenFileNameW 选文件 → ApplyZen(kZenCustomIdx, 路径)；打开失败 MessageBox 并回退原曲
+        MU->>SYS: GetOpenFileNameW 选文件 → ApplyZen(kZenCustomIdx, 路径)；打开失败 MessageBox 并回退原曲（手动切曲同时作废睡眠淡出）
     else IDM_ZEN_BASE+n（其余）
         MU->>SYS: audio.ApplyZen(n) 切曲（先毁旧曲并释放其整曲 PCM，再后台解码新曲）
+    else IDM_SLEEP_BASE+n（睡眠定时 关/15/30/45/60/90 分钟）
+        MU->>SYS: ctx.sleepMin=kSleepMin[n]（会话级）→ 重挂/摘 kTimerSleep，作废进行中淡出
     else IDM_AUTO_BASE+n
         MU->>SYS: ApplyAuto（KillTimer/SetTimer 2）
     else IDM_VOL/WORD

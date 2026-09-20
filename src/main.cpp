@@ -20,7 +20,15 @@ int APIENTRY wWinMain(HINSTANCE hInst, HINSTANCE, LPWSTR, int) {
     Gdiplus::GdiplusStartupInput gi;
     ULONG_PTR gdiToken = 0;
     Gdiplus::GdiplusStartup(&gdiToken, &gi, nullptr);
-    SetProcessDPIAware();
+    // 优先 Per-Monitor v2（Win10 1703+，动态加载防旧系统缺导出），失败退回系统级感知
+    if (HMODULE u = GetModuleHandleW(L"user32.dll")) {
+        auto setCtx = reinterpret_cast<BOOL(WINAPI *)(HANDLE)>(
+            GetProcAddress(u, "SetProcessDpiAwarenessContext"));
+        if (!setCtx || !setCtx(reinterpret_cast<HANDLE>(-4)))  // -4 = PER_MONITOR_AWARE_V2
+            SetProcessDPIAware();
+    } else {
+        SetProcessDPIAware();
+    }
 
     AppContext ctx;
     ctx.state.dpi = GetDpiForSystem() / 96.0;
@@ -52,10 +60,10 @@ int APIENTRY wWinMain(HINSTANCE hInst, HINSTANCE, LPWSTR, int) {
     ui::AddTrayIcon(ctx, hInst);
 
     std::srand(static_cast<unsigned>(GetTickCount()));
-    SetTimer(ctx.hwnd, ui::kTimerAnim, 16, nullptr);
     ui::ApplyAuto(ctx);                                // 恢复自动敲击
     RegisterHotKey(ctx.hwnd, 1, MOD_NOREPEAT, VK_F8);  // 全局热键：隔空敲一记
     render::Render(ctx.hwnd, ctx.state, ctx.assets);
+    ui::SyncAnim(ctx);  // 动画定时器按需挂载（静止时不烧 CPU）
     ShowWindow(ctx.hwnd, SW_SHOW);
     UpdateWindow(ctx.hwnd);
 
@@ -67,6 +75,8 @@ int APIENTRY wWinMain(HINSTANCE hInst, HINSTANCE, LPWSTR, int) {
 
     KillTimer(ctx.hwnd, ui::kTimerAnim);
     KillTimer(ctx.hwnd, ui::kTimerAuto);
+    KillTimer(ctx.hwnd, ui::kTimerSleep);
+    KillTimer(ctx.hwnd, ui::kTimerFade);
     UnregisterHotKey(ctx.hwnd, 1);
     SaveSettings(ctx.state, ctx.hwnd);
     ui::RemoveTrayIcon(ctx);

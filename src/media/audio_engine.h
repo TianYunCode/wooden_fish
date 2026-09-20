@@ -22,6 +22,8 @@ public:
 
     // 音量档 0静音/1小/2中/3大：对敲击音与禅定音同时生效（禅定音实时改增益，不中断循环）
     void SetVolume(int volIdx);
+    // 禅定音淡出系数 0..1（睡眠定时到点时 UI 逐档下调；显式选曲自动复位为 1）
+    void SetZenFade(double f);
     void PlayKnock(int combo);  // 连击越高音调越高
     // 禅定音 0关 1..kZenTrackCount 选曲 kZenCustomIdx=本地文件；换曲即释放旧曲并起独立解码线程
     // 返回 false 表示所选曲目无法打开/非法（关与成功启动解码时返回 true；声音在整曲解完后响起）
@@ -50,6 +52,7 @@ private:
     IXAudio2 *xa2_ = nullptr;
     IXAudio2MasteringVoice *master_ = nullptr;
     int volIdx_ = 2;
+    double zenFade_ = 1.0;  // 禅定淡出系数，仅 UI 线程写
     std::vector<Playing> voices_;
 
     // 禅定播放状态：整曲 PCM 只在播放期间存在；线程先退出，主线程才碰 voice/PCM，无并发竞争
