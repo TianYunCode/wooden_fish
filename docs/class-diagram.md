@@ -140,7 +140,7 @@ classDiagram
     class Prompt {
         <<static·ui/prompt>>
         +PromptNumber(parent, title, label, def, min, max, &out) bool$（内存 DLGTEMPLATE 数字输入框）
-        +ShowTextDialog(parent, title, text) void$（只读多行文本框，功德簿用）
+        +ShowTextDialog(parent, title, text, w, h) void$（只读多行文本框，功德簿/关于用）
     }
 
     class Main {

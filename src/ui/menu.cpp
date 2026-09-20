@@ -88,6 +88,7 @@ void ShowMenu(AppContext &ctx, int x, int y, bool fromTray) {
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(menu, MF_STRING, IDM_LEDGER, L"功德簿");
     AppendMenuW(menu, MF_STRING, IDM_RESET, L"重置功德");
+    AppendMenuW(menu, MF_STRING, IDM_ABOUT, L"关于");
     AppendMenuW(menu, MF_STRING, IDM_QUIT, L"退出");
 
     SetForegroundWindow(hwnd);
@@ -121,6 +122,30 @@ void ShowMenu(AppContext &ctx, int x, int y, bool fromTray) {
             txt += line;
         }
         ShowTextDialog(hwnd, L"功德簿", txt);
+    } else if (id == IDM_ABOUT) {
+        std::wstring txt = U8(config::kAppName);
+        txt += L"   v" + U8(config::kVersion) + L"\r\n\r\n";
+        txt += U8("敲的是赛博木鱼，积的是数字功德。\r\n"
+                  "纯 Win32 API + GDI+ 绘制，XAudio2 混音，零依赖单 exe，\r\n"
+                  "图像与音乐素材全部内置。\r\n\r\n");
+        wchar_t line[160];
+        std::swprintf(line, std::size(line),
+                      U8("【今日战绩】总功德 %llu · 今日 %llu · 在册 %d 日\r\n\r\n")
+                          .c_str(),
+                      st.merit, st.daily, static_cast<int>(ReadLedger().size()));
+        txt += line;
+        txt += U8("【操作提示】\r\n"
+                  "木鱼上左键按下再抬起 = 敲一记；按住拖动 = 移动窗口\r\n"
+                  "F8 隔空敲击 · 托盘双击显隐 · 右键唤出全部设置\r\n\r\n");
+        txt += U8("【致谢与授权】\r\n"
+                  "禅定音乐：Kevin MacLeod (incompetech.com), CC-BY 4.0\r\n"
+                  "木鱼/木槌图像：开源微信小程序「电子木鱼」(mp-muyu)\r\n"
+                  "佛光图片：本地 AI 生成，无第三方版权\r\n"
+                  "代码：免费软件，拟以 MIT 许可证发布\r\n\r\n");
+        txt += U8("© 2026 TianYunCode\r\n"
+                  "github.com/TianYunCode/wooden_fish\r\n\r\n"
+                  "功德无价，本软件亦免费。");
+        ShowTextDialog(hwnd, L"关于", txt, 300, 258);
     } else if (id == IDM_TOPMOST) {
         st.topmost = !st.topmost;
         SetWindowPos(hwnd, st.topmost ? HWND_TOPMOST : HWND_NOTOPMOST, 0, 0, 0, 0,

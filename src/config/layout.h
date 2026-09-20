@@ -4,7 +4,13 @@
 #include <windows.h>
 #include <gdiplus.h>
 
+#include "version.h"  // resources/version.h：全工程唯一版本号来源
+
 namespace muyu::config {
+
+// ---- 关于页展示的静态信息 ----
+inline constexpr const char *kAppName = "Windows 桌面电子木鱼";
+inline constexpr const char *kVersion = MUYU_VERSION_STR;
 
 // ---- 基准几何：按 mp-muyu-master 的 rpx 布局换算(鱼图像460rpx→330px，1rpx=0.7174px)
 // 摆放按参考(静止姿态不变)，敲击动作绕柄端挥动，见 kPivot ----

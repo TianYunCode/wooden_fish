@@ -102,7 +102,7 @@ INT_PTR CALLBACK TextDlgProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
     return FALSE;
 }
 
-void ShowTextDialog(HWND parent, const wchar_t *title, const std::wstring &text) {
+void ShowTextDialog(HWND parent, const wchar_t *title, const std::wstring &text, int w, int h) {
     std::vector<BYTE> b;
     Align4(b);
     Put(b, DWORD(WS_POPUP | WS_CAPTION | WS_SYSMENU | DS_MODALFRAME | DS_SETFONT | DS_CENTER));
@@ -110,8 +110,8 @@ void ShowTextDialog(HWND parent, const wchar_t *title, const std::wstring &text)
     Put(b, WORD(2));  // 控件数
     Put(b, INT16(0));
     Put(b, INT16(0));
-    Put(b, INT16(264));
-    Put(b, INT16(172));
+    Put(b, INT16(w));
+    Put(b, INT16(h));
     Put(b, WORD(0));  // 无菜单
     Put(b, WORD(0));  // 窗口类为默认 #32770
     PutW(b, title);
@@ -120,9 +120,9 @@ void ShowTextDialog(HWND parent, const wchar_t *title, const std::wstring &text)
     AddItem(b,
             WS_CHILD | WS_VISIBLE | WS_BORDER | WS_TABSTOP | ES_MULTILINE | ES_READONLY |
                 ES_AUTOVSCROLL | WS_VSCROLL,
-            7, 7, 250, 143, kIdText, 0x0081, L"");
-    AddItem(b, WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 94, 155, 76, 15, IDCANCEL,
-            0x0080, L"关闭");
+            7, 7, w - 14, h - 29, kIdText, 0x0081, L"");
+    AddItem(b, WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, (w - 76) / 2, h - 17, 76, 15,
+            IDCANCEL, 0x0080, L"关闭");
     DialogBoxIndirectParamW(GetModuleHandleW(nullptr),
                             reinterpret_cast<LPCDLGTEMPLATEW>(b.data()), parent, TextDlgProc,
                             reinterpret_cast<LPARAM>(text.c_str()));

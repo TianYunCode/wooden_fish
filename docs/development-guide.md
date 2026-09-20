@@ -30,7 +30,8 @@ CMakeLists.txt
 README.md
 docs/                 本文档目录
 resources/            资源
-  app.rc              资源脚本（#pragma code_page(65001) 必需）
+  app.rc              资源脚本（#pragma code_page(65001) 必需；VERSIONINFO 引用 version.h）
+  version.h           全工程唯一版本号（MAJOR/MINOR/PATCH + 字符串），发版只改这里
   resource.h          IDR_FISH=101 IDR_GU=102 IDR_KNOCK=103 IDR_ZEN1=104 IDR_GLOW=105 IDR_ZEN2..5=106..109
   app_icon.ico  images/{muyu,gu,glow}.png  sounds/knock.mp3  audio/zen1..5.mp3
 src/
@@ -101,13 +102,14 @@ build_msvc/           CMake 二进制目录（可整体删除重建，勿提交 
 - **加一个设置项**：`AppState` 加字段 → `LoadSettings/SaveSettings` 加键 → 菜单 `IDM_*_BASE` 加组 → `ShowMenu` 建子菜单+分发分支。
 - **换/加内置禅曲**：替换或追加 `resources/audio/zenN.mp3`（对应 IDR_ZENN），并同步 `config::kZenNames` 与 `kZenTrackCount`。素材须按同一管线离线处理：两遍 loudnorm 归一 -23 LUFS / TP -2.1 → 3s 淡入淡出 → 44.1k 立体声 80k CBR。**裁切后必须 `ffmpeg -af volumedetect` 验非静音、`ffprobe` 验时长**（见第 6 节坑表）。用户也可在菜单"本地音频文件…"自选，无需重编。
 - **改敲击时序**：鼠标路径为**左键抬起才起挥**（`WM_LBUTTONUP` 且按住期间未拖动；拖过只移动窗口不敲）；起挥在 `ui::DoKnock`（记 `knockAt`），触鱼结算在 `ui::Strike`（由 16ms 动画定时器在 `kSwingMs` 后驱动）；声音/挤压/波纹一律以 `impactAt` 为时基，勿再挂到按下时刻。
+- **升版本号**：只改 `resources/version.h`（三数字 + 字符串两处），exe 文件属性（app.rc VERSIONINFO）与"关于"页（`config::kVersion`）自动同步；发版说明见 README Releases。
 
 ## 8. 验证清单（改完跑一遍）
 
 1. 启动：无窗口前无报错，右下角出现木鱼（工作区右下角、距边 40px），托盘有图标。
 2. 点击：左键抬起棒槌才起挥、触鱼一刻才响/挤压/波纹/飘字；按住拖动只移窗不敲；快速连点音调升高，10/30/50 连击出金字。
 3. F8 全局热键敲击；托盘双击隐藏/恢复。
-4. 菜单逐项：尺寸三档、音量四档、自动敲击四档、目标（含"自定义…"弹窗）、皮肤、禅定音（5 曲+本地文件）、置顶、固定、开机自启、功德簿、重置。
+4. 菜单逐项：尺寸三档、音量四档、自动敲击四档、目标（含"自定义…"弹窗）、皮肤、禅定音（5 曲+本地文件）、置顶、固定、开机自启、功德簿、重置、关于（版本与文件名属性一致）。
 5. 退出重开：功德/全部设置复原（注册表兼容性）；窗口仍固定右下角（位置不记忆）。
 6. `build/` 目录有且仅有一个 `电子木鱼.exe`。
 

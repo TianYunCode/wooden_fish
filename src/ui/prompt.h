@@ -11,7 +11,8 @@ namespace muyu::ui {
 bool PromptNumber(HWND parent, const wchar_t *title, const wchar_t *label, int defVal, int minV,
                   int maxV, int &out);
 
-// 弹出只读多行文本框（可滚动），点"关闭"或 Esc 退出
-void ShowTextDialog(HWND parent, const wchar_t *title, const std::wstring &text);
+// 只读多行文本框弹窗（功德簿/关于共用），DLU 尺寸可调，超出滚动
+void ShowTextDialog(HWND parent, const wchar_t *title, const std::wstring &text, int w = 264,
+                    int h = 172);
 
 }  // namespace muyu::ui

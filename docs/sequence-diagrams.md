@@ -157,6 +157,8 @@ sequenceDiagram
         MU->>SYS: ToggleFish
     else IDM_LEDGER
         MU->>SYS: ReadLedger（注册表 log 子键）→ 格式化 → ShowTextDialog 只读列表
+    else IDM_ABOUT
+        MU->>SYS: 组装版本/战绩/致谢文本（config::kVersion ← version.h）→ ShowTextDialog
     else IDM_RESET
         MU->>SYS: merit=daily=0 → Render
     else IDM_QUIT

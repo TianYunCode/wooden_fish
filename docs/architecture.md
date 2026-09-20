@@ -61,7 +61,7 @@
 | `src/render/painter.*` | 渲染 | 32bpp premultiplied DIB 上画鱼身挤压、波纹、挥槌、飘字、功德、目标进度条（达成后改画"功德圆满"+佛光） |
 | `src/ui/main_window.*` | 窗口 | 分层窗口、点击敲击、拖动移位、托盘回调、双定时器、F8 热键 |
 | `src/ui/menu.*` | 菜单 | 纯文字 `MF_STRING` + `MF_CHECKED`，命令分发到各子系统 |
-| `src/ui/prompt.*` | 小对话框 | 内存 DLGTEMPLATE + `DialogBoxIndirectParamW`：数字输入（自定义目标）、只读多行文本（功德簿） |
+| `src/ui/prompt.*` | 小对话框 | 内存 DLGTEMPLATE + `DialogBoxIndirectParamW`：数字输入（自定义目标）、只读多行文本（功德簿/关于） |
 
 ## 4. 关键技术选型与理由
 

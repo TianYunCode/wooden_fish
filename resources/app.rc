@@ -1,6 +1,7 @@
 #pragma code_page(65001)
 #include <windows.h>
 #include "resource.h"
+#include "version.h"
 
 // 图标资源固定用数字 1，与托盘图标加载 (MAKEINTRESOURCEW(1)) 对应
 1 ICON "app_icon.ico"
@@ -20,8 +21,8 @@ IDR_ZEN5   RCDATA "audio/zen5.mp3"
 IDR_GLOW   RCDATA "images/glow.png"
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,0,0,0
- PRODUCTVERSION 1,0,0,0
+ FILEVERSION MUYU_VERSION_MAJOR,MUYU_VERSION_MINOR,MUYU_VERSION_PATCH,0
+ PRODUCTVERSION MUYU_VERSION_MAJOR,MUYU_VERSION_MINOR,MUYU_VERSION_PATCH,0
  FILEFLAGSMASK 0x3fL
  FILEFLAGS 0x0L
  FILEOS VOS_NT_WINDOWS32
@@ -35,9 +36,11 @@ BEGIN
             VALUE "FileDescription", "电子木鱼"
             VALUE "InternalName", "电子木鱼"
             VALUE "OriginalFilename", "电子木鱼.exe"
-            VALUE "ProductName", "电子木鱼"
-            VALUE "ProductVersion", "1.0.0.0"
-            VALUE "FileVersion", "1.0.0.0"
+            VALUE "ProductName", "Windows 桌面电子木鱼"
+            VALUE "ProductVersion", MUYU_VERSION_STR
+            VALUE "FileVersion", MUYU_VERSION_STR
+            VALUE "CompanyName", "TianYunCode"
+            VALUE "LegalCopyright", "Copyright © 2026 TianYunCode"
         END
     END
     BLOCK "VarFileInfo"
