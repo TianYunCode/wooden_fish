@@ -147,7 +147,8 @@ classDiagram
     class Prompt {
         <<static·ui/prompt>>
         +PromptNumber(parent, title, label, def, min, max, &out) bool$（内存 DLGTEMPLATE 数字输入框）
-        +ShowTextDialog(parent, title, text, w, h) void$（只读多行文本框，功德簿/关于用）
+        +ShowTextDialog(parent, title, text, w, h) void$（只读多行文本框，关于用）
+        +ShowLedgerDialog(parent, rows) void$（功德簿：ListView 两列表格+斑马纹+千分位+合计）
     }
 
     class Main {
@@ -194,7 +195,7 @@ classDiagram
 | `muyu::config` | `src/config` | 全部 `inline constexpr` 常量 |
 | `muyu::media` | `src/media` | `Assets` `AudioEngine` |
 | `muyu::render` | `src/render` | `Render` `AnimActive` `GetSkinAttr` |
-| `muyu::ui` | `src/ui` | 窗口/菜单函数、`WndProc`、消息与定时器常量 |
+| `muyu::ui` | `src/ui` | 窗口/菜单函数、owner-draw 菜单绘制（`OnMeasureMenu/OnDrawMenu/FreeMenuIcons`）、`WndProc`、消息与定时器常量 |
 
 ## 3. 关键类型说明
 

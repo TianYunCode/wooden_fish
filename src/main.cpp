@@ -3,15 +3,19 @@
 // 素材与音效以 RCDATA 嵌入 exe，启动时解码常驻内存
 
 #include <windows.h>
+#include <commctrl.h>
 #include <objidl.h>
 #include <gdiplus.h>
 #include <mfapi.h>
+#include <cstdio>
 #include <cstdlib>
 
 #include "app_context.h"
 #include "core/settings.h"
 #include "render/painter.h"
 #include "ui/main_window.h"
+#include "ui/menu_icons.h"
+
 
 int APIENTRY wWinMain(HINSTANCE hInst, HINSTANCE, LPWSTR, int) {
     using namespace muyu;
@@ -20,6 +24,8 @@ int APIENTRY wWinMain(HINSTANCE hInst, HINSTANCE, LPWSTR, int) {
     Gdiplus::GdiplusStartupInput gi;
     ULONG_PTR gdiToken = 0;
     Gdiplus::GdiplusStartup(&gdiToken, &gi, nullptr);
+    INITCOMMONCONTROLSEX icc{sizeof(icc), ICC_LISTVIEW_CLASSES};
+    InitCommonControlsEx(&icc);  // 功德簿的报表视图列表控件
     // 优先 Per-Monitor v2（Win10 1703+，动态加载防旧系统缺导出），失败退回系统级感知
     if (HMODULE u = GetModuleHandleW(L"user32.dll")) {
         auto setCtx = reinterpret_cast<BOOL(WINAPI *)(HANDLE)>(
@@ -80,6 +86,7 @@ int APIENTRY wWinMain(HINSTANCE hInst, HINSTANCE, LPWSTR, int) {
     UnregisterHotKey(ctx.hwnd, 1);
     SaveSettings(ctx.state, ctx.hwnd);
     ui::RemoveTrayIcon(ctx);
+    ui::FreeMenuIcons();
     ctx.audio.Shutdown();
     MFShutdown();
     CoUninitialize();

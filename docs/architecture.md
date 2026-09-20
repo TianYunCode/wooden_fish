@@ -7,7 +7,7 @@
 | 目标 | 落地方式 |
 |---|---|
 | 零部署依赖 | 只用 Windows 自带系统 DLL（GDI+ / MF / XAudio2 / Shell），不引入任何框架 |
-| 单文件分发 | 图片、音效、图标、版本信息全部以 `RCDATA`/`ICON`/`VERSIONINFO` 嵌入 exe |
+| 单文件分发 | 图片、音效、图标、版本信息、manifest（Common Controls v6）全部以 `RCDATA`/`ICON`/`VERSIONINFO`/`RT_MANIFEST` 嵌入 exe |
 | 首击零延迟 | 启动时把敲击 mp3 预解码为 PCM 常驻内存，播放路径上不再有解码开销（禅定音同理：整曲解完后才起播，见 4.2） |
 | 真透明窗口 | 分层窗口 + `UpdateLayeredWindow` 逐像素 alpha，无矩形边框 |
 | 可维护性 | 企业式分层：常量配置 / 核心状态 / 媒体 / 渲染 / UI 五层单向依赖 |
@@ -60,8 +60,9 @@
 | `src/render/skins.*` | 皮肤 | 4 组 ColorMatrix，按 skinIdx 缓存 ImageAttributes |
 | `src/render/painter.*` | 渲染 | 32bpp premultiplied DIB 上画鱼身挤压、波纹、挥槌、飘字、功德、目标进度条（达成后改画"功德圆满"+佛光） |
 | `src/ui/main_window.*` | 窗口 | 分层窗口、点击敲击、拖动移位、托盘回调、四定时器（动画帧按需挂载/自动敲击/睡眠倒计时/淡出步进）、F8 热键、WM_DPICHANGED |
-| `src/ui/menu.*` | 菜单 | 纯文字 `MF_STRING` + `MF_CHECKED`，命令分发到各子系统 |
-| `src/ui/prompt.*` | 小对话框 | 内存 DLGTEMPLATE + `DialogBoxIndirectParamW`：数字输入（自定义目标）、只读多行文本（功德簿/关于） |
+| `src/ui/menu.*` | 菜单 | owner-draw（`MF_OWNERDRAW`）逐项带 Lucide 线性图标，勾选画 ✓，子菜单箭头由系统绘制；命令分发到各子系统 |
+| `src/ui/menu_icons.*` | 菜单绘制基建 | `RCDATA("ic_<key>")` → GDI+ 位图缓存；`OnMeasureMenu/OnDrawMenu` 处理 WM_MEASUREITEM/WM_DRAWITEM（双缓冲、系统菜单字体、DPI 缩放） |
+| `src/ui/prompt.*` | 小对话框 | 内存 DLGTEMPLATE + `DialogBoxIndirectParamW`：数字输入（自定义目标）、只读多行文本（关于）、功德簿表格（SysListView32 报表视图 + NM_CUSTOMDRAW 斑马纹，需 manifest 启用 comctl32 v6） |
 
 ## 4. 关键技术选型与理由
 

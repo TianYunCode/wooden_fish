@@ -30,7 +30,8 @@ CMakeLists.txt
 README.md
 docs/                 本文档目录
 resources/            资源
-  app.rc              资源脚本（#pragma code_page(65001) 必需；VERSIONINFO 引用 version.h）
+  app.rc              资源脚本（#pragma code_page(65001) 必需；VERSIONINFO 引用 version.h；RT_MANIFEST 引 app.manifest）
+  app.manifest        Common Controls v6 依赖声明（功德簿 ListView 表格所需）+ asInvoker
   version.h           全工程唯一版本号（MAJOR/MINOR/PATCH + 字符串），发版只改这里
   resource.h          IDR_FISH=101 IDR_GU=102 IDR_KNOCK=103 IDR_ZEN1=104 IDR_GLOW=105 IDR_ZEN2..6=106..110
   app_icon.ico  images/{muyu,gu,glow}.png  sounds/knock.mp3  audio/zen1..6.mp3
@@ -50,7 +51,7 @@ build_msvc/           CMake 二进制目录（可整体删除重建，勿提交 
 
 - **不引入任何第三方框架/DLL**；新能力优先用 Win32/GDI+/系统多媒体栈原生实现。
 - 严格分层单向依赖：`ui → render → media → core → config`，禁止反向 include。
-- 菜单一律纯文字（`MF_STRING` + `MF_CHECKED`），不加图标。
+- 菜单为 owner-draw：每项 `MF_OWNERDRAW` + `MenuDrawData`（文字/图标 key/是否子菜单）经 `dwItemData` 传给 `menu_icons.cpp` 的 `OnMeasureMenu/OnDrawMenu`；图标为 Lucide（ISC）48px PNG 内嵌 RCDATA；勾选项图标槽改画 ✓。
 - 中文字面量：源文件 UTF-8 + 编译选项 `/utf-8`；窄字面量转 `wchar_t` 用 `muyu::U8()`。
 - 新增可调参数/文案/档位一律进 `config/layout.h`，不散落魔法数。
 - 新增状态字段一律进 `AppState`，并同步 `settings.cpp` 读写与范围校验。
@@ -91,6 +92,10 @@ build_msvc/           CMake 二进制目录（可整体删除重建，勿提交 
 | Git Bash 下跑 PowerShell 检查窗口 | `$` 被 bash 展开/中文乱码；用 `-EncodedCommand`（UTF-16LE→base64）或按 ASCII 类名 `WoodenFishWnd` 匹配 |
 | `taskkill` 参数被 MSYS 改写 | 前缀 `MSYS_NO_PATHCONV=1` |
 | 内存 DLGTEMPLATE 对话框"点了没反应" | `DialogBoxIndirectParamW` 失败且静默。DLGTEMPLATE 字段顺序是 style→exstyle→**cdit**→x,y,cx,cy→menu→class→title→[字号+字体名]；cdit 必须紧跟 exstyle，多写/错位一个 WORD 全盘错。字体大小字段按**整点**存（9=9pt）。可把 prompt.cpp 单独编成小测无头验证（找 #32770/填值/PostMessage IDOK） |
+| DLGITEMTEMPLATE 里类名写成 `0xFFFF`+字符串 | 0xFFFF 前缀表示"序数 atom"，其后应是 WORD 而非字符串；内联类名字符串**不加** 0xFFFF 前缀。写错时 DialogBoxIndirectParamW 返回 -1 且 err=0，WM_INITDIALOG 根本不触发；可用 CreateDialogIndirectParamW（非阻塞、逐项返回句柄）做模板变体探针定位 |
+| app.rc 里嵌 RT_MANIFEST 后链接报 CVT1100 资源重复 | link.exe 默认也嵌入自身 manifest；加 `/MANIFEST:NO` 让 RC 里的那份生效 |
+| 公共控件（SysListView32）弹窗前 | 必须先 `InitCommonControlsEx(ICC_LISTVIEW_CLASSES)`，否则控件类未注册、对话框创建失败；且需 exe 内 manifest 声明 comctl32 v6，否则得到 Windows2000 风格灰皮控件 |
+| `FindResourceW` 找不到 rc 里的字符串名资源 | rc.exe 把带引号的字符串资源名**连引号一起、且转大写**存入 exe（`"ic_pin"` → `"IC_PIN"`）；查找串须原样带引号与大写。另：`MEASUREITEMSTRUCT` 没有 hwndItem，owner-draw 菜单量尺寸时拿不到菜单句柄，文字等元数据只能走 `itemData` |
 | 裁出来的 mp3 是纯静音 | 素材整段落在源曲目空白处；`-ss` 快进定位也可能落到错误偏移。交付前必查 `ffmpeg -af volumedetect`（mean 应远大于 -91dB） |
 | mp3 时长/码率头显示异常（如 210s 报 54s） | `-ss` 放在 `-i` 前的快裁导致 Xing 头损坏；改输出端精确定位，仍不对就 wav 往返重编并 `-write_xing 1` |
 | ffmpeg geq 表达式报"Undefined constant"或"A luminance or RGB expression is mandatory" | geq 坐标变量是大写 `X,Y`；对 gbrap 只写 a 表达式不行，r/g/b 必须给恒等式 `p(X,Y)` |

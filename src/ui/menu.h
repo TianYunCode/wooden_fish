@@ -1,5 +1,5 @@
 #pragma once
-// 右键/托盘菜单：构建与响应，纯文字无图标
+// 右键/托盘菜单：构建与响应；owner-draw 每项带 Lucide 线性图标（见 menu_icons.h）
 
 #include "app_context.h"
 

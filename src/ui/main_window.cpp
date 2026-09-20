@@ -14,6 +14,7 @@
 #include "core/util.h"
 #include "render/painter.h"
 #include "ui/menu.h"
+#include "ui/menu_icons.h"
 
 namespace muyu::ui {
 
@@ -287,6 +288,13 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         render::Render(hwnd, st, pctx->assets);
         return 0;
     }
+    case WM_MEASUREITEM:
+        if (OnMeasureMenu(reinterpret_cast<LPMEASUREITEMSTRUCT>(lp), st.dpi))
+            return TRUE;
+        break;
+    case WM_DRAWITEM:
+        OnDrawMenu(reinterpret_cast<LPDRAWITEMSTRUCT>(lp), st.dpi);
+        return TRUE;
     case WM_HOTKEY:
         if (wp == 1)
             DoKnock(*pctx, config::kFishCx, config::kFishCy - 60);

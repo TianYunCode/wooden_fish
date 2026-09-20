@@ -145,8 +145,9 @@ sequenceDiagram
 
     U->>WP: WM_RBUTTONUP（鱼身上）或 托盘图标单击
     WP->>MU: ShowMenu(ctx, 屏幕坐标, fromTray)
-    MU->>MU: CreatePopupMenu + AddRadio（读当前 state 打勾）
+    MU->>MU: CreatePopupMenu + AddMI/AddRadio（owner-draw，MenuDrawData 存 dwItemData，读当前 state 打勾）
     MU->>U: TrackPopupMenu(TPM_RETURNCMD) 阻塞取选择
+    Note over U,WP: 弹出/悬停期间系统回调 WM_MEASUREITEM / WM_DRAWITEM → ui::OnMeasureMenu / OnDrawMenu（图标列 + 文字 + ✓）
     U-->>MU: 菜单项 id（或取消=0）
     alt IDM_SIZE_BASE+n
         MU->>SYS: ApplyScale(kSizeVals[n]) → SetWindowPos+Render
@@ -175,7 +176,7 @@ sequenceDiagram
     else IDM_SHOWHIDE（托盘双击/菜单）
         MU->>SYS: ToggleFish
     else IDM_LEDGER
-        MU->>SYS: ReadLedger（注册表 log 子键）→ 格式化 → ShowTextDialog 只读列表
+        MU->>SYS: ReadLedger（注册表 log 子键）→ ShowLedgerDialog（ListView 表格：日期/当日功德，斑马纹+千分位+今日标记+合计行）
     else IDM_ABOUT
         MU->>SYS: 组装版本/战绩/致谢文本（config::kVersion ← version.h）→ ShowTextDialog
     else IDM_RESET

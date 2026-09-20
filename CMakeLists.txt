@@ -15,6 +15,7 @@ add_executable(muyu WIN32
     src/render/painter.cpp
     src/ui/main_window.cpp
     src/ui/menu.cpp
+    src/ui/menu_icons.cpp
     src/ui/prompt.cpp
     resources/app.rc
 )
@@ -31,8 +32,11 @@ target_compile_options(muyu PRIVATE /utf-8)
 
 target_link_libraries(muyu PRIVATE
     gdiplus mfplat mfreadwrite mfuuid xaudio2
-    shell32 shlwapi ole32 user32 gdi32 advapi32 comdlg32
+    shell32 shlwapi ole32 user32 gdi32 advapi32 comdlg32 comctl32
 )
+
+# 链接器默认会嵌入自身 manifest，与 app.rc 里的 RT_MANIFEST 冲突（CVT1100），关掉它
+target_link_options(muyu PRIVATE /MANIFEST:NO)
 
 set(OUT_DIR "${CMAKE_SOURCE_DIR}/build")
 set_target_properties(muyu PROPERTIES OUTPUT_NAME "电子木鱼")

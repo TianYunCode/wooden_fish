@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <cwchar>
 #include <iterator>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -14,16 +15,41 @@
 #include "core/util.h"
 #include "render/painter.h"
 #include "ui/main_window.h"
+#include "ui/menu_icons.h"
 #include "ui/prompt.h"
 
 namespace muyu::ui {
 
 namespace {
 
-void AddRadio(HMENU m, int base, const char *const *names, int n, int cur) {
+// owner-draw 项的绘制数据（文字 + 图标 key + 是否子菜单）集中存放在这里，
+// 指针写进 MENUITEMINFO.dwItemData；ShowMenu 每次开头 clear，模态 TrackPopupMenu 期间保持有效
+std::vector<std::unique_ptr<MenuDrawData>> &DrawStore() {
+    static std::vector<std::unique_ptr<MenuDrawData>> store;
+    return store;
+}
+
+void AddMI(HMENU m, UINT_PTR id, bool popup, const wchar_t *text, const wchar_t *icon,
+           bool checked = false) {
+    AppendMenuW(m, (popup ? MF_POPUP : MF_STRING) | MF_OWNERDRAW | (checked ? MF_CHECKED : 0), id,
+                text);
+    auto d = std::make_unique<MenuDrawData>();
+    d->text = text;
+    d->icon = icon ? icon : L"";
+    d->sub = popup;
+    MENUITEMINFOW mii{};
+    mii.cbSize = sizeof(mii);
+    mii.fMask = MIIM_DATA;
+    mii.dwItemData = reinterpret_cast<ULONG_PTR>(d.get());
+    SetMenuItemInfoW(m, GetMenuItemCount(m) - 1, MF_BYPOSITION, &mii);
+    DrawStore().push_back(std::move(d));
+}
+
+void AddRadio(HMENU m, int base, const char *const *names, const wchar_t *const *icons, int n,
+              int cur) {
     for (int i = 0; i < n; ++i) {
         std::wstring t = U8(names[i]);
-        AppendMenuW(m, MF_STRING | (i == cur ? MF_CHECKED : 0), base + i, t.c_str());
+        AddMI(m, base + i, false, t.c_str(), icons[i], i == cur);
     }
 }
 
@@ -34,72 +60,85 @@ void ShowMenu(AppContext &ctx, int x, int y, bool fromTray) {
     AppState &st = ctx.state;
 
     const char *sizeNames[] = {"小", "中", "大"};
+    const wchar_t *sizeIcons[] = {L"shrink", L"expand", L"maximize"};
     const char *autoNames[] = {"关", "慢", "中", "快"};
+    const wchar_t *autoIcons[] = {L"ban", L"turtle", L"footprints", L"rabbit"};
     const char *volNames[] = {"静音", "小", "中", "大"};
+    const wchar_t *volIcons[] = {L"volume-x", L"volume-1", L"volume", L"volume-2"};
     const char *goalNames[] = {"不设", "27", "54", "108", "216", "自定义…"};
+    const wchar_t *goalIcons[] = {L"circle-slash", L"target", L"target",
+                                  L"target",       L"target", L"pencil-line"};
     const char *wordNames[] = {"固定 功德+1", "随机福语", "关闭"};
+    const wchar_t *wordIcons[] = {L"type", L"shuffle", L"circle-slash"};
     const char *skinNames[] = {"原木", "鎏金", "水墨", "霓虹"};
+    const wchar_t *skinIcons[] = {L"tree-deciduous", L"crown", L"brush", L"zap"};
+    const wchar_t *zenIcons[] = {L"ban",       L"piano",   L"music-2", L"hand-metal",
+                                 L"wind",      L"flower-2", L"scroll-text", L"file-audio"};
+    const char *sleepNames[] = {"关", "15 分钟", "30 分钟", "45 分钟", "60 分钟", "90 分钟"};
+    const wchar_t *sleepIcons[] = {L"ban", L"timer", L"timer", L"timer", L"timer", L"timer"};
+
+    DrawStore().clear();
 
     HMENU menu = CreatePopupMenu();
     if (fromTray) {
-        std::wstring shTxt = U8(IsWindowVisible(hwnd) ? "隐藏木鱼" : "显示木鱼");
-        AppendMenuW(menu, MF_STRING, IDM_SHOWHIDE, shTxt.c_str());
+        bool vis = IsWindowVisible(hwnd) != FALSE;
+        AddMI(menu, IDM_SHOWHIDE, false, U8(vis ? "隐藏木鱼" : "显示木鱼").c_str(),
+              vis ? L"eye-off" : L"eye");
         AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     }
-    AppendMenuW(menu, MF_STRING | (st.topmost ? MF_CHECKED : 0), IDM_TOPMOST, L"置顶");
-    AppendMenuW(menu, MF_STRING | (st.pinned ? MF_CHECKED : 0), IDM_PIN, L"固定");
-    AppendMenuW(menu, MF_STRING | (AutoRunOn() ? MF_CHECKED : 0), IDM_AUTORUN, L"开机自启");
+    AddMI(menu, IDM_TOPMOST, false, L"置顶", L"pin", st.topmost);
+    AddMI(menu, IDM_PIN, false, L"固定", L"lock", st.pinned);
+    AddMI(menu, IDM_AUTORUN, false, L"开机自启", L"calendar-clock", AutoRunOn());
     {
         HMENU s = CreatePopupMenu();
-        AddRadio(s, IDM_SIZE_BASE, sizeNames, 3,
+        AddRadio(s, IDM_SIZE_BASE, sizeNames, sizeIcons, 3,
                  st.scale < config::kSizeBig * 0.375 ? 0 : st.scale < config::kSizeBig * 0.75 ? 1 : 2);
-        AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(s), L"调节大小");
+        AddMI(menu, reinterpret_cast<UINT_PTR>(s), true, L"调节大小", L"scaling");
     }
     {
         HMENU s = CreatePopupMenu();
-        AddRadio(s, IDM_AUTO_BASE, autoNames, 4, st.autoIdx);
-        AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(s), L"自动敲击");
+        AddRadio(s, IDM_AUTO_BASE, autoNames, autoIcons, 4, st.autoIdx);
+        AddMI(menu, reinterpret_cast<UINT_PTR>(s), true, L"自动敲击", L"bot");
     }
     {
         HMENU s = CreatePopupMenu();
-        AddRadio(s, IDM_VOL_BASE, volNames, 4, st.volIdx);
-        AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(s), L"音量");
+        AddRadio(s, IDM_VOL_BASE, volNames, volIcons, 4, st.volIdx);
+        AddMI(menu, reinterpret_cast<UINT_PTR>(s), true, L"音量", L"volume-2");
     }
     {
         HMENU s = CreatePopupMenu();
-        AddRadio(s, IDM_WORD_BASE, wordNames, 3, st.wordIdx);
-        AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(s), L"飘字");
+        AddRadio(s, IDM_WORD_BASE, wordNames, wordIcons, 3, st.wordIdx);
+        AddMI(menu, reinterpret_cast<UINT_PTR>(s), true, L"飘字", L"type");
     }
     {
         HMENU s = CreatePopupMenu();
-        AddRadio(s, IDM_GOAL_BASE, goalNames, 6, st.goalIdx);
-        AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(s), L"今日目标");
+        AddRadio(s, IDM_GOAL_BASE, goalNames, goalIcons, 6, st.goalIdx);
+        AddMI(menu, reinterpret_cast<UINT_PTR>(s), true, L"今日目标", L"target");
     }
     {
         HMENU s = CreatePopupMenu();
-        AddRadio(s, IDM_SKIN_BASE, skinNames, 4, st.skinIdx);
-        AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(s), L"皮肤");
+        AddRadio(s, IDM_SKIN_BASE, skinNames, skinIcons, 4, st.skinIdx);
+        AddMI(menu, reinterpret_cast<UINT_PTR>(s), true, L"皮肤", L"palette");
     }
     {
         HMENU s = CreatePopupMenu();
-        AddRadio(s, IDM_ZEN_BASE, config::kZenNames, config::kZenMenuCount, st.zenIdx);
-        AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(s), L"禅定音");
+        AddRadio(s, IDM_ZEN_BASE, config::kZenNames, zenIcons, config::kZenMenuCount, st.zenIdx);
+        AddMI(menu, reinterpret_cast<UINT_PTR>(s), true, L"禅定音", L"music");
     }
     {
         HMENU s = CreatePopupMenu();
-        const char *sleepNames[] = {"关", "15 分钟", "30 分钟", "45 分钟", "60 分钟", "90 分钟"};
         int cur = 0;
         for (int i = 0; i < 6; ++i)
             if (ctx.sleepMin == config::kSleepMin[i])
                 cur = i;
-        AddRadio(s, IDM_SLEEP_BASE, sleepNames, 6, cur);
-        AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(s), L"睡眠定时(禅定音)");
+        AddRadio(s, IDM_SLEEP_BASE, sleepNames, sleepIcons, 6, cur);
+        AddMI(menu, reinterpret_cast<UINT_PTR>(s), true, L"睡眠定时(禅定音)", L"moon-star");
     }
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(menu, MF_STRING, IDM_LEDGER, L"功德簿");
-    AppendMenuW(menu, MF_STRING, IDM_RESET, L"重置功德");
-    AppendMenuW(menu, MF_STRING, IDM_ABOUT, L"关于");
-    AppendMenuW(menu, MF_STRING, IDM_QUIT, L"退出");
+    AddMI(menu, IDM_LEDGER, false, L"功德簿", L"book-open");
+    AddMI(menu, IDM_RESET, false, L"重置功德", L"rotate-ccw");
+    AddMI(menu, IDM_ABOUT, false, L"关于", L"info");
+    AddMI(menu, IDM_QUIT, false, L"退出", L"log-out");
 
     SetForegroundWindow(hwnd);
     UINT id = TrackPopupMenu(menu, TPM_RIGHTBUTTON | TPM_RETURNCMD | TPM_NONOTIFY, x, y, 0, hwnd,
@@ -111,27 +150,7 @@ void ShowMenu(AppContext &ctx, int x, int y, bool fromTray) {
     if (id == IDM_SHOWHIDE) {
         ToggleFish(ctx);
     } else if (id == IDM_LEDGER) {
-        auto rows = ReadLedger();
-        std::wstring txt;
-        wchar_t line[96];
-        unsigned long long sum = 0;
-        for (auto &r : rows)
-            sum += r.second;
-        if (rows.empty()) {
-            txt = U8("尚无记录。\n开始敲击，功德簿会自动记下每天最终的功德。");
-        } else {
-            txt = U8("日期          当日功德\n");
-            for (auto it = rows.rbegin(); it != rows.rend(); ++it) {  // 最近一天在最上
-                DWORD d = it->first;
-                std::swprintf(line, std::size(line), L"%04u-%02u-%02u    %llu\r\n",
-                              d / 10000, d / 100 % 100, d % 100, it->second);
-                txt += line;
-            }
-            std::swprintf(line, std::size(line), L"\r\n在册 %d 日，累计 %llu 功德",
-                          static_cast<int>(rows.size()), sum);
-            txt += line;
-        }
-        ShowTextDialog(hwnd, L"功德簿", txt);
+        ShowLedgerDialog(hwnd, ReadLedger());
     } else if (id == IDM_ABOUT) {
         std::wstring txt = U8(config::kAppName);
         txt += L"   v" + U8(config::kVersion) + L"\r\n\r\n";
@@ -152,6 +171,7 @@ void ShowMenu(AppContext &ctx, int x, int y, bool fromTray) {
                   "大悲咒（印能法师版）：佛音网 (foyinwang.com) 免费流通版本\r\n"
                   "木鱼/木槌图像：开源微信小程序「电子木鱼」(mp-muyu)\r\n"
                   "佛光图片：本地 AI 生成，无第三方版权\r\n"
+                  "菜单图标：Lucide (lucide.dev)，ISC 许可\r\n"
                   "代码：免费软件，拟以 MIT 许可证发布\r\n\r\n");
         txt += U8("© 2026 TianYunCode\r\n"
                   "github.com/TianYunCode/wooden_fish\r\n\r\n"
