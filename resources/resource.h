@@ -9,3 +9,4 @@
 #define IDR_ZEN3   107
 #define IDR_ZEN4   108
 #define IDR_ZEN5   109
+#define IDR_ZEN6   110

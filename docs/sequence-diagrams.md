@@ -23,11 +23,11 @@ sequenceDiagram
     R-->>M: fish / gu / glow 位图
     M->>M: CoInitializeEx + MFStartup
     M->>AE: Init()
-    AE->>R: MF SourceReader 仅解码 knock.mp3 → PCM（禅曲推迟到选中时懒解码）
+    AE->>R: MF SourceReader 仅解码 knock.mp3 → PCM（禅曲不预解码，ApplyZen 时整曲解完后才起播）
     AE->>AE: XAudio2Create + MasteringVoice
     AE-->>M: ok
     M->>M: zenIdx==本地文件但文件已丢失 → 视为关
-    M->>AE: ApplyZen(state.zenIdx, zenFile)（懒解码选中曲目并恢复上次禅定音）
+    M->>AE: ApplyZen(state.zenIdx, zenFile)（恢复上次禅定音：解码线程整曲解完后起播）
     M->>W: Create(ctx,hInst)
     W->>OS: RegisterClassExW("WoodenFishWnd")
     W->>OS: CreateWindowExW(LAYERED|TOPMOST|TOOLWINDOW, lpParam=&ctx)
@@ -140,9 +140,9 @@ sequenceDiagram
     else IDM_GOAL_BASE+n（预设档）
         MU->>SYS: state.goalIdx=n → Render
     else IDM_ZEN_BASE+n（n=kZenCustomIdx "本地音频文件…"）
-        MU->>SYS: GetOpenFileNameW 选文件 → ApplyZen(6, 路径)；解码失败 MessageBox 并回退原曲
+        MU->>SYS: GetOpenFileNameW 选文件 → ApplyZen(kZenCustomIdx, 路径)；打开失败 MessageBox 并回退原曲
     else IDM_ZEN_BASE+n（其余）
-        MU->>SYS: audio.ApplyZen(n) 懒解码切曲
+        MU->>SYS: audio.ApplyZen(n) 切曲（先毁旧曲并释放其整曲 PCM，再后台解码新曲）
     else IDM_AUTO_BASE+n
         MU->>SYS: ApplyAuto（KillTimer/SetTimer 2）
     else IDM_VOL/WORD

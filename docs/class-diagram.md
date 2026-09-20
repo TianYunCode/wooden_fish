@@ -62,8 +62,6 @@ classDiagram
 
     class AudioEngine {
         -vector~BYTE~ knockPcm_
-        -ZenTrack zen_
-        -int zenLoaded_
         -WAVEFORMATEX knockWf_
         -DWORD knockDurMs_
         -int volIdx_
@@ -71,13 +69,18 @@ classDiagram
         -IXAudio2MasteringVoice* master_
         -vector~Playing~ voices_
         -IXAudio2SourceVoice* zenVoice_
+        -vector~BYTE~ zenPcm_
+        -HANDLE zenThread_
+        -HANDLE zenStopEv_
         +Init() bool
         +SetVolume(volIdx) void
         +PlayKnock(combo) void
-        +ApplyZen(trackIdx) void
+        +ApplyZen(trackIdx, file) bool
         +Shutdown() void
         -DecodeRes(rid, pcm, wf, durMs) bool$
-        -EnsureZenLoaded(trackIdx) bool
+        -CreateZenReader(trackIdx, file, rd) bool$
+        -ZenDecodeThread(param) DWORD$
+        -StopZenStream() void
     }
 
     class Settings {
@@ -198,11 +201,11 @@ classDiagram
 - 渲染层只持有 `const AppState&`，写状态的路径只有 UI 层（敲击/菜单）和 `Settings::LoadSettings`。
 
 ### `AudioEngine`（RAII 风格但显式 Shutdown）
-- `Init()`：仅解码敲击音（失败即整体失败）→ 创建 XAudio2 设备与 MasteringVoice。禅定曲目在 `ApplyZen` 选中时才懒解码。
+- `Init()`：仅解码敲击音（失败即整体失败）→ 创建 XAudio2 设备与 MasteringVoice。禅定曲目在 `ApplyZen` 时才解码。
 - `SetVolume(volIdx)`：记录音量档；对禅定音用现有声部实时 `SetVolume`（0.45×档位系数），循环不中断、不从零重播。
 - `PlayKnock(combo)`：先回收到期声部，再建瞬时声部（增益取当前音量档）；`endAt = now + 样本时长 + 300ms`。
-- `ApplyZen(trackIdx)`：0=关（释放 PCM）；1..5 选曲，`EnsureZenLoaded` 按需解码且只常驻当前曲目，销毁并重建循环声部；幂等。
-- `Shutdown()`：Zen 声部 → 敲击声部池 → Mastering → 设备，逆序释放。
+- `ApplyZen(trackIdx, file)`：0=关；1..7 选曲（7=本地文件）。先 `StopZenStream`（置事件→join→毁声部→释放整曲 PCM）；主线程建 SourceReader（坏文件当场返回 false），再起独立 `ZenDecodeThread` 一次性解完整曲 PCM（每样本块轮询停止事件），解完后建 `LOOP_INFINITE` 声部起播——解码线程与 XAudio2 播放线程分离，播放期间零解码。整曲 PCM 存于 `zenPcm_`，换曲即释放。
+- `Shutdown()`：StopZenStream → 敲击声部池 → Mastering → 设备，逆序释放。
 
 ### `AppContext`
 纯数据结构（无行为），是"这个应用实例"的根对象。单实例设计，因此 `WndProc` 里经 `WM_NCCREATE` 的 `CREATESTRUCTW::lpCreateParams` 保存一次 `GWLP_USERDATA` 即可全程取回，避免全局变量。

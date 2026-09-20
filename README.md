@@ -2,7 +2,7 @@
 
 > 敲击赛博木鱼，积攒数字功德。一个**纯 Win32 API** 实现的桌面挂件：单 exe、零依赖、真透明、带声音。
 
-<sub>没有 Electron，没有 Qt，没有解释器——只有一个约 12 MB 的 `电子木鱼.exe`（5 首内置禅曲占大头），双击即用。</sub>
+<sub>没有 Electron，没有 Qt，没有解释器——只有一个约 12 MB 的 `电子木鱼.exe`（6 首内置禅曲占大头），双击即用。</sub>
 
 ## 🎞️ 效果演示
 
@@ -22,8 +22,8 @@
 - 🎯 **今日目标**：27 / 54 / 108 / 216 四档佛教数字或任意自定义，进度条实时推进；达成后计数隐去，金色佛光 +"功德圆满"呼吸
 - 🎨 **四皮肤**：原木 / 鎏金 / 水墨 / 霓虹，同一素材 ColorMatrix 实时调色
 - 🎵 **真·音效**：Media Foundation 预解码 + XAudio2 多声部混音，连打声浪自然重叠
-- 🧘 **禅定背景音**：5 首内置曲目（Kevin MacLeod, CC-BY 4.0）或自选本地音频（mp3/wav/m4a/aac/flac/wma），无缝循环，与敲击共用音量档
-- ℹ️ **关于页**：版本 v1.0.5（单一来源 `resources/version.h`，与 exe 文件属性一致）、素材致谢、战绩一览
+- 🧘 **禅定背景音**：6 首内置完整曲目（含《大悲咒》印能法师版；5 首 Kevin MacLeod, CC-BY 4.0）或自选本地音频（mp3/wav/m4a/aac/flac/wma），整曲一次解完后才起播、播放期间零解码永不卡顿，无缝循环，与敲击共用音量档
+- ℹ️ **关于页**：版本 v1.1.0（单一来源 `resources/version.h`，与 exe 文件属性一致）、素材致谢、战绩一览
 - 📌 **窗口特性**：逐像素真透明不规则窗口、置顶开关、拖拽移动、"固定"开关（勾选后防误碰移位）、启动固定屏幕右下角、系统托盘（双击显隐）、开机自启
 - 📐 **三档尺寸**：小 / 中 / 大（大 = 素材原始 480px 满幅）
 
@@ -88,7 +88,7 @@ ui (窗口/菜单) → render (绘制/皮肤) → media (图像/音频) → core
 
 - 视觉布局参考开源微信小程序「电子木鱼」(mp-muyu) 的 rpx 版式，素材为项目内 PNG
 - 达成佛光贴图（放射光线、带真实透明通道）为本地 AI 生成，无版权负担
-- 禅定背景音：5 首可切换曲目（*Meditation Impromptu 01*、*Fresh Air*、*Kalimba Relaxation Music*、*River Flute*、*White Lotus*）— 均为 [Kevin MacLeod](https://incompetech.com), CC-BY 4.0
+- 禅定背景音：6 首可切换完整曲目（*Meditation Impromptu 01*、*Fresh Air*、*Kalimba Relaxation Music*、*River Flute*、*White Lotus*）— 均为 [Kevin MacLeod](https://incompetech.com), CC-BY 4.0；*大悲咒（印能法师版）* — 佛音网 (foyinwang.com) 免费流通版本（授权未明，请勿商用）
 - 功德无价，本软件亦免费
 
 ## 📄 License

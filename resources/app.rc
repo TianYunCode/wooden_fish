@@ -17,6 +17,8 @@ IDR_ZEN2   RCDATA "audio/zen2.mp3"
 IDR_ZEN3   RCDATA "audio/zen3.mp3"
 IDR_ZEN4   RCDATA "audio/zen4.mp3"
 IDR_ZEN5   RCDATA "audio/zen5.mp3"
+// zen6 大悲咒（印能法师版，全网流传最广的完整版）：录音取自佛音网(foyinwang.com)免费流通版本，无明确授权声明（用户知悉并指定使用），如需商用请替换
+IDR_ZEN6   RCDATA "audio/zen6.mp3"
 // 达成佛光: 本地 AI 生成的金色光线(黑底，运行时按亮度转透明)，无第三方版权
 IDR_GLOW   RCDATA "images/glow.png"
 

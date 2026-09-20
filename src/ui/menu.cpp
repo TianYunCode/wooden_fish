@@ -139,6 +139,7 @@ void ShowMenu(AppContext &ctx, int x, int y, bool fromTray) {
                   "F8 隔空敲击 · 托盘双击显隐 · 右键唤出全部设置\r\n\r\n");
         txt += U8("【致谢与授权】\r\n"
                   "禅定音乐：Kevin MacLeod (incompetech.com), CC-BY 4.0\r\n"
+                  "大悲咒（印能法师版）：佛音网 (foyinwang.com) 免费流通版本\r\n"
                   "木鱼/木槌图像：开源微信小程序「电子木鱼」(mp-muyu)\r\n"
                   "佛光图片：本地 AI 生成，无第三方版权\r\n"
                   "代码：免费软件，拟以 MIT 许可证发布\r\n\r\n");

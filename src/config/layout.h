@@ -46,14 +46,13 @@ inline constexpr const char *kWords[kWordCount] = {
     "福报 +1",     "福慧 +1",   "禅定 +1",     "放下 +1",   "豁达 +1",
     "宽容 +1",     "法喜 +1",   "自律 +1",     "无畏 +1",   "善巧 +1"};
 
-// 禅定音：0=关，1..kZenTrackCount 选曲（全部 Kevin MacLeod, CC-BY 4.0），kZenTrackCount+1=本地文件
-inline constexpr int kZenTrackCount = 5;
+// 禅定音：0=关，1..kZenTrackCount 选曲（1..5 Kevin MacLeod CC-BY 4.0；6 大悲咒，来源见 app.rc 注），kZenTrackCount+1=本地文件
+inline constexpr int kZenTrackCount = 6;
 inline constexpr int kZenCustomIdx = kZenTrackCount + 1;
 inline constexpr int kZenMenuCount = kZenTrackCount + 2;  // 含"关"与"本地文件…"
 inline constexpr const char *kZenNames[kZenMenuCount] = {
     "关", "禅意即兴·钢琴弦乐", "清新空气·钢琴独奏", "卡林巴·拇指琴",
-    "溪流竹笛·流水衬底", "白莲·梵呗唱钵", "本地音频文件…"};
-inline constexpr ULONGLONG kZenMaxMs = 10 * 60 * 1000;  // 本地文件超长截断，控内存
+    "溪流竹笛·流水衬底", "白莲·梵呗唱钵", "大悲咒·印能法师", "本地音频文件…"};
 
 inline constexpr ULONGLONG kComboWindowMs = 1500;  // 连击判定窗口
 inline constexpr int kCritCombos[3] = {10, 30, 50};
