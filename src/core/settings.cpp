@@ -23,44 +23,53 @@ void LoadSettings(AppState &st) {
     HKEY k;
     if (RegOpenKeyExW(HKEY_CURRENT_USER, kRegPath, 0, KEY_READ, &k) != ERROR_SUCCESS)
         return;
-    auto u64 = [&](const wchar_t *n, unsigned long long &out) {
+    auto rd32 = [&](const wchar_t *n, DWORD &out) {
         DWORD s = sizeof(out);
         RegQueryValueExW(k, n, nullptr, nullptr, reinterpret_cast<BYTE *>(&out), &s);
     };
-    auto u32 = [&](const wchar_t *n, DWORD &out) {
+    auto rd64 = [&](const wchar_t *n, unsigned long long &out) {
         DWORD s = sizeof(out);
         RegQueryValueExW(k, n, nullptr, nullptr, reinterpret_cast<BYTE *>(&out), &s);
     };
+    // 档位值：读取失败视为 0（与历史存档一致），越上界保持内存现值
+    auto idx32 = [&](const wchar_t *n, int &slot, int hi) {
+        DWORD v = 0;
+        rd32(n, v);
+        if (static_cast<int>(v) <= hi)
+            slot = static_cast<int>(v);
+    };
+
+    rd64(L"merit", st.merit);
+    rd64(L"daily", st.daily);
     DWORD v = 0;
-    u64(L"merit", st.merit);
-    u64(L"daily", st.daily);
-    u32(L"date", v);
+    rd32(L"date", v);
     if (v != TodayYmd()) {
         st.daily = 0;
         v = TodayYmd();
     }
     st.dailyDate = v;
-    u32(L"scale", v);
+
+    rd32(L"scale", v);
     if (v >= 300 && v <= 2000)
         st.scale = v / 1000.0;
-    u32(L"topmost", v);
-    st.topmost = v != 0;
-    u32(L"pin", v);
-    st.pinned = v != 0;
-    u32(L"vol", v);
-    if (v <= 3) st.volIdx = static_cast<int>(v);
-    u32(L"auto", v);
-    if (v <= 3) st.autoIdx = static_cast<int>(v);
-    u32(L"goal", v);
-    if (v <= 5) st.goalIdx = static_cast<int>(v);
-    u32(L"goalX", v);
-    if (v >= 1 && v <= 99999) st.goalCustom = v;
-    u32(L"word", v);
-    if (v <= 2) st.wordIdx = static_cast<int>(v);
-    u32(L"skin", v);
-    if (v <= 3) st.skinIdx = static_cast<int>(v);
-    u32(L"zen", v);
-    if (v <= static_cast<DWORD>(config::kZenCustomIdx)) st.zenIdx = static_cast<int>(v);
+
+    DWORD b = 0;
+    rd32(L"topmost", b);
+    st.topmost = b != 0;
+    rd32(L"pin", b);
+    st.pinned = b != 0;
+
+    idx32(L"vol", st.volIdx, 3);
+    idx32(L"auto", st.autoIdx, 3);
+    idx32(L"goal", st.goalIdx, 5);
+    DWORD g = 0;
+    rd32(L"goalX", g);
+    if (g >= 1 && g <= 99999)
+        st.goalCustom = g;
+    idx32(L"word", st.wordIdx, 2);
+    idx32(L"skin", st.skinIdx, 3);
+    idx32(L"zen", st.zenIdx, config::kZenCustomIdx);
+
     wchar_t path[512] = L"";
     DWORD sz = sizeof(path);
     RegQueryValueExW(k, L"zenFile", nullptr, nullptr, reinterpret_cast<BYTE *>(path), &sz);

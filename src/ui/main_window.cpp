@@ -173,6 +173,71 @@ void ToggleFish(AppContext &ctx) {
     }
 }
 
+namespace {
+
+// ---- 定时器分发：一个定时器一个分支，WndProc 只做路由 ----
+
+void OnAutoTimer(AppContext &ctx) {
+    if (ctx.state.autoIdx)
+        DoKnock(ctx, config::kHitX + 15, config::kHitY - 25);
+}
+
+// 睡眠倒计时到点：禅定音开着才开始 5s 淡出
+void OnSleepTimer(AppContext &ctx) {
+    KillTimer(ctx.hwnd, kTimerSleep);
+    if (ctx.state.zenIdx) {
+        ctx.fadeStep = 0;
+        SetTimer(ctx.hwnd, kTimerFade, 100, nullptr);
+    }
+}
+
+// 淡出每 100ms 降一档增益，归零即停机并落盘
+void OnFadeTimer(AppContext &ctx) {
+    AppState &st = ctx.state;
+    ++ctx.fadeStep;
+    double f = 1.0 - static_cast<double>(ctx.fadeStep) / config::kZenFadeSteps;
+    if (f > 0.0) {
+        ctx.audio.SetZenFade(f);
+        return;
+    }
+    KillTimer(ctx.hwnd, kTimerFade);
+    ctx.fadeStep = 0;
+    ctx.sleepMin = 0;
+    ctx.audio.ApplyZen(0);
+    st.zenIdx = 0;
+    SaveSettings(st, ctx.hwnd);
+}
+
+// 16ms 动画帧：先结算到点的触鱼，再清理过期飘字，最后渲染或收尾摘表
+void OnAnimTimer(AppContext &ctx) {
+    AppState &st = ctx.state;
+    HWND hwnd = ctx.hwnd;
+    if (st.impactPending && GetTickCount64() - st.knockAt >= config::kSwingMs)
+        Strike(ctx);  // 槌头落到位：此刻发声并触发鱼身效果
+    st.floats.erase(std::remove_if(st.floats.begin(), st.floats.end(),
+                                   [&](const FloatText &f) {
+                                       return GetTickCount64() - f.born > config::kFloatMs;
+                                   }),
+                    st.floats.end());
+    if (!render::AnimActive(st)) {  // 动画结束：摘除定时器，补画最后一帧收尾
+        KillTimer(hwnd, kTimerAnim);
+        ctx.animOn = false;
+    }
+    if (IsWindowVisible(hwnd))
+        render::Render(hwnd, st, ctx.assets);
+}
+
+LRESULT OnTimer(AppContext &ctx, UINT_PTR id) {
+    switch (id) {
+    case kTimerAuto:  OnAutoTimer(ctx);  return 0;
+    case kTimerSleep: OnSleepTimer(ctx); return 0;
+    case kTimerFade:  OnFadeTimer(ctx);  return 0;
+    default:          OnAnimTimer(ctx);  return 0;
+    }
+}
+
+}  // namespace
+
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     if (msg == WM_NCCREATE) {
         auto *cs = reinterpret_cast<CREATESTRUCTW *>(lp);
@@ -235,51 +300,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         return 0;
     }
     case WM_TIMER:
-        if (wp == kTimerAuto) {  // 自动敲击
-            if (st.autoIdx)
-                DoKnock(*pctx, config::kHitX + 15, config::kHitY - 25);
-            return 0;
-        }
-        if (wp == kTimerSleep) {  // 睡眠倒计时到点：开始 5s 淡出
-            KillTimer(hwnd, kTimerSleep);
-            if (st.zenIdx) {
-                pctx->fadeStep = 0;
-                SetTimer(hwnd, kTimerFade, 100, nullptr);
-            }
-            return 0;
-        }
-        if (wp == kTimerFade) {  // 每 100ms 降一档增益，归零即停
-            ++pctx->fadeStep;
-            double f = 1.0 - static_cast<double>(pctx->fadeStep) / config::kZenFadeSteps;
-            if (f <= 0.0) {
-                KillTimer(hwnd, kTimerFade);
-                pctx->fadeStep = 0;
-                pctx->sleepMin = 0;
-                pctx->audio.ApplyZen(0);
-                st.zenIdx = 0;
-                SaveSettings(st, hwnd);
-            } else {
-                pctx->audio.SetZenFade(f);
-            }
-            return 0;
-        }
-        if (st.impactPending && GetTickCount64() - st.knockAt >= config::kSwingMs)
-            Strike(*pctx);  // 槌头落到位：此刻发声并触发鱼身效果
-        st.floats.erase(std::remove_if(st.floats.begin(), st.floats.end(),
-                                       [&](const FloatText &f) {
-                                           return GetTickCount64() - f.born > config::kFloatMs;
-                                       }),
-                        st.floats.end());
-        if (render::AnimActive(st)) {
-            if (IsWindowVisible(hwnd))
-                render::Render(hwnd, st, pctx->assets);
-        } else {  // 动画结束：摘除定时器，补画最后一帧收尾
-            KillTimer(hwnd, kTimerAnim);
-            pctx->animOn = false;
-            if (IsWindowVisible(hwnd))
-                render::Render(hwnd, st, pctx->assets);
-        }
-        return 0;
+        return OnTimer(*pctx, static_cast<UINT_PTR>(wp));
     case WM_DPICHANGED: {  // 跨显示器/改缩放：按系统建议矩形重设窗口
         st.dpi = HIWORD(wp) / 96.0;
         RECT *sug = reinterpret_cast<RECT *>(lp);

@@ -13,9 +13,10 @@ Gdiplus::Bitmap *LoadResBitmap(int id) {
     HMODULE mod = GetModuleHandleW(nullptr);
     HRSRC h = FindResourceW(mod, MAKEINTRESOURCEW(id), MAKEINTRESOURCEW(10));  // 10 = RCDATA
     if (!h) return nullptr;
-    DWORD sz = SizeofResource(mod, h);
     HGLOBAL hg = LoadResource(mod, h);
-    IStream *st = SHCreateMemStream(static_cast<const BYTE *>(LockResource(hg)), sz);
+    if (!hg) return nullptr;  // 防御：LockResource(NULL) 是未定义行为
+    IStream *st = SHCreateMemStream(static_cast<const BYTE *>(LockResource(hg)),
+                                    SizeofResource(mod, h));
     if (!st) return nullptr;
     Gdiplus::Bitmap *b = Gdiplus::Bitmap::FromStream(st);
     st->Release();

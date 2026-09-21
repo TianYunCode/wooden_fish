@@ -27,6 +27,85 @@ WAVEFORMATEX ZenWf() {
     return wf;
 }
 
+// 把 exe 内嵌 RCDATA 资源包装成只读内存流
+bool OpenResStream(WORD rid, IStream **out) {
+    HMODULE mod = GetModuleHandleW(nullptr);
+    HRSRC h = FindResourceW(mod, MAKEINTRESOURCEW(rid), MAKEINTRESOURCEW(10));
+    if (!h)
+        return false;
+    HGLOBAL hg = LoadResource(mod, h);
+    if (!hg)
+        return false;
+    IStream *ist = SHCreateMemStream(static_cast<const BYTE *>(LockResource(hg)),
+                                     SizeofResource(mod, h));
+    if (!ist)
+        return false;
+    *out = ist;
+    return true;
+}
+
+// 从内嵌资源直接建 SourceReader（所有资源音频的公共入口）
+bool OpenResReader(WORD rid, IMFSourceReader **out) {
+    IStream *ist = nullptr;
+    if (!OpenResStream(rid, &ist))
+        return false;
+    IMFByteStream *bs = nullptr;
+    if (FAILED(MFCreateMFByteStreamOnStream(ist, &bs))) {
+        ist->Release();
+        return false;
+    }
+    ist->Release();
+    HRESULT hr = MFCreateSourceReaderFromByteStream(bs, nullptr, out);
+    bs->Release();
+    if (FAILED(hr) || !*out) {
+        if (*out) {
+            (*out)->Release();
+            *out = nullptr;
+        }
+        return false;
+    }
+    return true;
+}
+
+// 读一个样本并追加到 pcm；返回 false 表示读取出错（调用方视为流结束）
+bool ReadSampleInto(IMFSourceReader *rd, std::vector<BYTE> &pcm, DWORD &flags) {
+    IMFSample *sample = nullptr;
+    if (FAILED(rd->ReadSample(MF_SOURCE_READER_FIRST_AUDIO_STREAM, 0, nullptr, &flags, nullptr,
+                              &sample))) {
+        if (sample)
+            sample->Release();  // 防御：个别失败路径仍会返回样本
+        return false;
+    }
+    if (sample) {
+        IMFMediaBuffer *buf = nullptr;
+        if (SUCCEEDED(sample->ConvertToContiguousBuffer(&buf))) {
+            BYTE *p = nullptr;
+            DWORD len = 0;
+            if (SUCCEEDED(buf->Lock(&p, nullptr, &len))) {
+                pcm.insert(pcm.end(), p, p + len);
+                buf->Unlock();
+            }
+            buf->Release();
+        }
+        sample->Release();
+    }
+    return true;
+}
+
+// 把 reader 协商为 16bit 44.1k 立体声 PCM（全工程唯一的输出格式）
+bool SetPcmType(IMFSourceReader *rd) {
+    IMFMediaType *want = nullptr;
+    MFCreateMediaType(&want);
+    want->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio);
+    want->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_PCM);
+    want->SetUINT32(MF_MT_AUDIO_BITS_PER_SAMPLE, 16);
+    want->SetUINT32(MF_MT_AUDIO_NUM_CHANNELS, 2);
+    want->SetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, 44100);
+    HRESULT hr = rd->SetCurrentMediaType(MF_SOURCE_READER_FIRST_AUDIO_STREAM, nullptr, want);
+    want->Release();
+    return SUCCEEDED(hr);
+}
+
 // 建 reader 并强制协商为 16bit 44.1k 立体声 PCM；主线程建好以就地验证文件可用性，随后交解码线程
 bool CreateZenReader(int trackIdx, const std::wstring &file, IMFSourceReader **out) {
     IMFSourceReader *rd = nullptr;
@@ -34,42 +113,10 @@ bool CreateZenReader(int trackIdx, const std::wstring &file, IMFSourceReader **o
         if (FAILED(MFCreateSourceReaderFromURL(file.c_str(), nullptr, &rd)) || !rd)
             return false;
     } else {
-        HMODULE mod = GetModuleHandleW(nullptr);
-        HRSRC h = FindResourceW(mod, MAKEINTRESOURCEW(kZenRes[trackIdx - 1]),
-                                MAKEINTRESOURCEW(10));
-        if (!h)
+        if (!OpenResReader(kZenRes[trackIdx - 1], &rd))
             return false;
-        HGLOBAL hg = LoadResource(mod, h);
-        if (!hg)
-            return false;
-        IStream *ist = SHCreateMemStream(static_cast<const BYTE *>(LockResource(hg)),
-                                         SizeofResource(mod, h));
-        if (!ist)
-            return false;
-        IMFByteStream *bs = nullptr;
-        if (FAILED(MFCreateMFByteStreamOnStream(ist, &bs))) {
-            ist->Release();
-            return false;
-        }
-        ist->Release();
-        HRESULT hr = MFCreateSourceReaderFromByteStream(bs, nullptr, &rd);
-        bs->Release();
-        if (FAILED(hr) || !rd) {
-            if (rd)
-                rd->Release();
-            return false;
-        }
     }
-    IMFMediaType *want = nullptr;
-    MFCreateMediaType(&want);
-    want->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio);
-    want->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_PCM);
-    want->SetUINT32(MF_MT_AUDIO_BITS_PER_SAMPLE, 16);
-    want->SetUINT32(MF_MT_AUDIO_NUM_CHANNELS, 2);
-    want->SetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, 44100);
-    HRESULT hr = rd->SetCurrentMediaType(MF_SOURCE_READER_FIRST_AUDIO_STREAM, nullptr, want);
-    want->Release();
-    if (FAILED(hr)) {
+    if (!SetPcmType(rd)) {
         rd->Release();
         return false;
     }
@@ -77,41 +124,16 @@ bool CreateZenReader(int trackIdx, const std::wstring &file, IMFSourceReader **o
     return true;
 }
 
-// 协商为 16bit 44.1k 立体声 PCM 并读完（敲击音等短样本用）
+// 从 reader 读完整个音频流为 PCM。必须先协商为 PCM 再读：
+// 不协商时 ReadSample 返回的是压缩帧（mp3 原始数据），当 PCM 播就是无声噪声
 bool ReadDecoded(IMFSourceReader *rd, std::vector<BYTE> &pcm, WAVEFORMATEX &wf, DWORD &durMs) {
-    IMFMediaType *want = nullptr;
-    MFCreateMediaType(&want);
-    want->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio);
-    want->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_PCM);
-    want->SetUINT32(MF_MT_AUDIO_BITS_PER_SAMPLE, 16);
-    want->SetUINT32(MF_MT_AUDIO_NUM_CHANNELS, 2);
-    want->SetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, 44100);
-    HRESULT hr = rd->SetCurrentMediaType(MF_SOURCE_READER_FIRST_AUDIO_STREAM, nullptr, want);
-    want->Release();
-    if (FAILED(hr))
+    if (!SetPcmType(rd))
         return false;
-
     std::vector<BYTE> out;
     for (;;) {
         DWORD sb = 0;
-        LONGLONG ts = 0;
-        IMFSample *sample = nullptr;
-        if (FAILED(rd->ReadSample(MF_SOURCE_READER_FIRST_AUDIO_STREAM, 0, nullptr, &sb, &ts,
-                                  &sample)))
+        if (!ReadSampleInto(rd, out, sb))
             break;
-        if (sample) {
-            IMFMediaBuffer *buf = nullptr;
-            if (SUCCEEDED(sample->ConvertToContiguousBuffer(&buf))) {
-                BYTE *p = nullptr;
-                DWORD len = 0;
-                if (SUCCEEDED(buf->Lock(&p, nullptr, &len))) {
-                    out.insert(out.end(), p, p + len);
-                    buf->Unlock();
-                }
-                buf->Release();
-            }
-            sample->Release();
-        }
         if (sb & MF_SOURCE_READERF_ENDOFSTREAM)
             break;
     }
@@ -126,29 +148,9 @@ bool ReadDecoded(IMFSourceReader *rd, std::vector<BYTE> &pcm, WAVEFORMATEX &wf, 
 }  // namespace
 
 bool AudioEngine::DecodeRes(WORD rid, std::vector<BYTE> &pcm, WAVEFORMATEX &wf, DWORD &durMs) {
-    HMODULE mod = GetModuleHandleW(nullptr);
-    HRSRC h = FindResourceW(mod, MAKEINTRESOURCEW(rid), MAKEINTRESOURCEW(10));
-    if (!h)
-        return false;
-    DWORD sz = SizeofResource(mod, h);
-    IStream *ist =
-        SHCreateMemStream(static_cast<const BYTE *>(LockResource(LoadResource(mod, h))), sz);
-    if (!ist)
-        return false;
-    IMFByteStream *bs = nullptr;
-    if (FAILED(MFCreateMFByteStreamOnStream(ist, &bs))) {
-        ist->Release();
-        return false;
-    }
     IMFSourceReader *rd = nullptr;
-    HRESULT hr = MFCreateSourceReaderFromByteStream(bs, nullptr, &rd);
-    bs->Release();
-    ist->Release();
-    if (FAILED(hr) || !rd) {
-        if (rd)
-            rd->Release();
+    if (!OpenResReader(rid, &rd))
         return false;
-    }
     bool ok = ReadDecoded(rd, pcm, wf, durMs);
     rd->Release();
     return ok;
@@ -236,26 +238,9 @@ DWORD WINAPI AudioEngine::ZenDecodeThread(LPVOID param) {
         if (WaitForSingleObject(self->zenStopEv_, 0) == WAIT_OBJECT_0)
             break;
         DWORD sb = 0;
-        IMFSample *sample = nullptr;
-        if (FAILED(rd->ReadSample(MF_SOURCE_READER_FIRST_AUDIO_STREAM, 0, nullptr, &sb, nullptr,
-                                  &sample))) {
-            if (sample)
-                sample->Release();
+        if (!ReadSampleInto(rd, pcm, sb)) {
             ok = false;
             break;
-        }
-        if (sample) {
-            IMFMediaBuffer *buf = nullptr;
-            if (SUCCEEDED(sample->ConvertToContiguousBuffer(&buf))) {
-                BYTE *p = nullptr;
-                DWORD len = 0;
-                if (SUCCEEDED(buf->Lock(&p, nullptr, &len))) {
-                    pcm.insert(pcm.end(), p, p + len);
-                    buf->Unlock();
-                }
-                buf->Release();
-            }
-            sample->Release();
         }
         if (sb & MF_SOURCE_READERF_ENDOFSTREAM) {
             ok = !pcm.empty();

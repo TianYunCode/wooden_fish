@@ -61,6 +61,24 @@ std::wstring GroupDigits(unsigned long long v) {
     return out;
 }
 
+// DLGTEMPLATE 头部公共段：style→exstyle→cdit→x,y,cx,cy→menu→class→title→[字号+字体名]
+// （内存模板字段顺序错一个 WORD 全盘错，三处对话框共用这一份）
+void BeginDialogTemplate(std::vector<BYTE> &b, WORD cdit, int w, int h, const wchar_t *title) {
+    Align4(b);
+    Put(b, DWORD(WS_POPUP | WS_CAPTION | WS_SYSMENU | DS_MODALFRAME | DS_SETFONT | DS_CENTER));
+    Put(b, DWORD(WS_EX_DLGMODALFRAME));
+    Put(b, cdit);          // 控件数（必须紧跟 exstyle）
+    Put(b, INT16(0));
+    Put(b, INT16(0));
+    Put(b, INT16(w));
+    Put(b, INT16(h));
+    Put(b, WORD(0));       // 无菜单
+    Put(b, WORD(0));       // 窗口类为默认 #32770
+    PutW(b, title);
+    Put(b, WORD(9));       // DS_SETFONT 字号：9pt（模板按整点存储）
+    PutW(b, L"MS Shell Dlg");
+}
+
 // 控件模板：atom 0x80=BUTTON 0x81=EDIT 0x82=STATIC
 void AddItem(std::vector<BYTE> &b, DWORD style, int x, int y, int cx, int cy, WORD id, WORD atom,
              const wchar_t *text) {
@@ -282,19 +300,7 @@ INT_PTR CALLBACK TextDlgProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
 
 void ShowTextDialog(HWND parent, const wchar_t *title, const std::wstring &text, int w, int h) {
     std::vector<BYTE> b;
-    Align4(b);
-    Put(b, DWORD(WS_POPUP | WS_CAPTION | WS_SYSMENU | DS_MODALFRAME | DS_SETFONT | DS_CENTER));
-    Put(b, DWORD(WS_EX_DLGMODALFRAME));
-    Put(b, WORD(2));  // 控件数
-    Put(b, INT16(0));
-    Put(b, INT16(0));
-    Put(b, INT16(w));
-    Put(b, INT16(h));
-    Put(b, WORD(0));  // 无菜单
-    Put(b, WORD(0));  // 窗口类为默认 #32770
-    PutW(b, title);
-    Put(b, WORD(9));  // DS_SETFONT 字号：9pt（模板按整点存储）
-    PutW(b, L"MS Shell Dlg");
+    BeginDialogTemplate(b, 2, w, h, title);  // 只读文本框 + 关闭按钮
     AddItem(b,
             WS_CHILD | WS_VISIBLE | WS_BORDER | WS_TABSTOP | ES_MULTILINE | ES_READONLY |
                 ES_AUTOVSCROLL | WS_VSCROLL,
@@ -309,19 +315,7 @@ void ShowTextDialog(HWND parent, const wchar_t *title, const std::wstring &text,
 void ShowLedgerDialog(HWND parent, const LedgerRows &rows) {
     constexpr int w = 272, h = 178;  // DLU
     std::vector<BYTE> b;
-    Align4(b);
-    Put(b, DWORD(WS_POPUP | WS_CAPTION | WS_SYSMENU | DS_MODALFRAME | DS_SETFONT | DS_CENTER));
-    Put(b, DWORD(WS_EX_DLGMODALFRAME));
-    Put(b, WORD(3));  // 列表 + 合计行 + 关闭按钮
-    Put(b, INT16(0));
-    Put(b, INT16(0));
-    Put(b, INT16(w));
-    Put(b, INT16(h));
-    Put(b, WORD(0));
-    Put(b, WORD(0));
-    PutW(b, L"功德簿");
-    Put(b, WORD(9));
-    PutW(b, L"MS Shell Dlg");
+    BeginDialogTemplate(b, 3, w, h, L"功德簿");  // 列表 + 合计行 + 关闭按钮
     AddItemClass(b,
                  WS_CHILD | WS_VISIBLE | WS_BORDER | WS_TABSTOP | LVS_REPORT | LVS_SINGLESEL |
                      LVS_SHOWSELALWAYS | WS_VSCROLL,
@@ -338,19 +332,7 @@ bool PromptNumber(HWND parent, const wchar_t *title, const wchar_t *label, int d
                   int maxV, int &out) {
     PromptCtx ctx{label, defVal, minV, maxV, 0};
     std::vector<BYTE> b;
-    Align4(b);
-    Put(b, DWORD(WS_POPUP | WS_CAPTION | WS_SYSMENU | DS_MODALFRAME | DS_SETFONT | DS_CENTER));
-    Put(b, DWORD(WS_EX_DLGMODALFRAME));
-    Put(b, WORD(4));      // 控件数（DLGTEMPLATE 紧随扩展风格）
-    Put(b, INT16(0));
-    Put(b, INT16(0));
-    Put(b, INT16(230));
-    Put(b, INT16(72));
-    Put(b, WORD(0));      // 无菜单
-    Put(b, WORD(0));      // 窗口类为默认 #32770
-    PutW(b, title);
-    Put(b, WORD(9));      // DS_SETFONT 字号：9pt（模板按整点存储）
-    PutW(b, L"MS Shell Dlg");
+    BeginDialogTemplate(b, 4, 230, 72, title);  // 标签 + 输入框 + 确定/取消
     AddItem(b, WS_CHILD | WS_VISIBLE | SS_LEFT, 7, 7, 216, 10, kIdLabel, 0x0082, L"");
     AddItem(b, WS_CHILD | WS_VISIBLE | WS_BORDER | WS_TABSTOP | ES_AUTOHSCROLL | ES_NUMBER, 7, 24,
             216, 14, kIdEdit, 0x0081, L"");
